@@ -589,86 +589,216 @@ def check_availability_node(state: AgentState) -> AgentState:
                 
                 if last_user_message:
                     available_slots = calendar_manager.suggest_time_slots(last_user_message)
+                    
+                    # Check if this is a specific time request and auto-select the best slot
+                    parsed_preference = parse_date_preference(last_user_message)
+                    is_specific_time = "specific time" in parsed_preference.get('time_preference', '')
+                    
+                    if is_specific_time and available_slots:
+                        # Auto-select the first (best) slot for specific time requests
+                        best_slot = available_slots[0]
+                        start_time_str = best_slot['start']
+                        end_time_str = best_slot['end']
+                        
+                        # Parse the selected time
+                        start_dt = datetime.fromisoformat(start_time_str.replace('Z', ''))
+                        end_dt = datetime.fromisoformat(end_time_str.replace('Z', ''))
+                        
+                        # Format for display
+                        time_str = start_dt.strftime('%I:%M %p')
+                        duration_minutes = best_slot.get('duration_minutes', 60)
+                        
+                        # Create slot info
+                        slot_info = {
+                            'number': 1,
+                            'time': time_str,
+                            'duration': f"{duration_minutes} minutes",
+                            'start': start_dt.strftime('%Y-%m-%d %H:%M'),
+                            'end': end_dt.strftime('%Y-%m-%d %H:%M')
+                        }
+                        
+                        # Update appointment details with the selected slot
+                        state.appointment_details.update({
+                            'title': f"Appointment - {state.appointment_details.get('parsed_input', 'Meeting')}",
+                            'start_time': start_dt.strftime('%Y-%m-%d %H:%M'),
+                            'end_time': end_dt.strftime('%Y-%m-%d %H:%M'),
+                            'start_hour': start_dt.hour,
+                            'selected_slot': slot_info
+                        })
+                        
+                        # Set available slots to just the selected one
+                        state.available_slots = [slot_info]
+                        
+                        # Create confirmation message for auto-selected slot
+                        date_str = target_dt.strftime('%A, %B %d, %Y')
+                        response_msg = (
+                            f"Perfect! I found the best available slot for your requested time of **{parsed_preference['time_preference']}** on **{date_str}**:\n\n"
+                            f"📅 **Selected:** {time_str} ({duration_minutes} minutes)\n\n"
+                            f"**Ready to book this appointment?**\n\n"
+                            f"**Just say:**\n"
+                            f"• \"**Yes**\" or \"**Book it**\" to confirm\n"
+                            f"• \"**No**\" to see other options\n"
+                            f"• \"**Change**\" to modify the time\n\n"
+                            f"**I'm ready to schedule this for you!** ✨"
+                        )
+                    else:
+                        # For general requests, show all available slots
+                        if available_slots:
+                            # Format the slots for display
+                            slots_info = []
+                            for i, slot in enumerate(available_slots[:8], 1):  # Show up to 8 slots
+                                try:
+                                    # Handle timezone-aware datetime strings
+                                    start_str = slot['start']
+                                    end_str = slot['end']
+                                    
+                                    # Remove timezone info if present for parsing
+                                    if start_str.endswith('Z'):
+                                        start_str = start_str[:-1]
+                                    if end_str.endswith('Z'):
+                                        end_str = end_str[:-1]
+                                    
+                                    start_time = datetime.fromisoformat(start_str)
+                                    end_time = datetime.fromisoformat(end_str)
+                                    
+                                    # Format time in a user-friendly way
+                                    time_str = start_time.strftime('%I:%M %p')  # e.g., "2:30 PM"
+                                    duration_minutes = slot.get('duration_minutes', 60)
+                                    
+                                    slots_info.append({
+                                        'number': i,
+                                        'time': time_str,
+                                        'duration': f"{duration_minutes} minutes",
+                                        'start': start_time.strftime('%Y-%m-%d %H:%M'),
+                                        'end': end_time.strftime('%Y-%m-%d %H:%M')
+                                    })
+                                except Exception as e:
+                                    logger.warning(f"Error formatting slot {i}: {e}")
+                                    continue
+                            
+                            if slots_info:
+                                state.available_slots = slots_info
+                                
+                                # Create a user-friendly response
+                                date_str = target_dt.strftime('%A, %B %d, %Y')  # e.g., "Friday, June 27, 2025"
+                                response_msg = f"Great! Here are the available time slots for **{date_str}**: 📅\n\n"
+                                
+                                for slot in slots_info:
+                                    response_msg += f"**{slot['number']}.** {slot['time']} ({slot['duration']})\n"
+                                
+                                response_msg += "\n**How to choose:**\n"
+                                response_msg += "• Just tell me the **number** (like '1' or 'slot 3')\n"
+                                response_msg += "• Or tell me the **time** (like '2:30 PM')\n"
+                                response_msg += "• Or say **'yes'** to confirm the first available slot\n\n"
+                                response_msg += "**Which time works best for you?** 🤔"
+                                
+                                # Add helpful suggestions
+                                if len(slots_info) >= 3:
+                                    response_msg += f"\n\n💡 **Recommendation**: I recommend slot **{slots_info[0]['number']}** ({slots_info[0]['time']}) as it's early in the day and gives you plenty of time for other activities!"
+                                elif len(slots_info) == 2:
+                                    response_msg += f"\n\n💡 **Quick tip**: Both slots look great! Slot **{slots_info[0]['number']}** is earlier, and slot **{slots_info[1]['number']}** is later in the day."
+                                else:
+                                    response_msg += f"\n\n💡 **Perfect timing**: This is the only available slot for that day, so it's a great choice!"
+                            else:
+                                state.available_slots = []
+                                response_msg = (
+                                    f"I couldn't find any available slots for **{target_dt.strftime('%A, %B %d, %Y')}**. 😔\n\n"
+                                    f"**Don't worry!** Here are some alternatives:\n"
+                                    f"• Try a **different date** (like tomorrow or next week)\n"
+                                    f"• Ask for **morning slots** instead of afternoon\n"
+                                    f"• Request a **shorter meeting** (30 minutes instead of 1 hour)\n\n"
+                                    f"**What would you like to try?** I'm here to help find a time that works for you! 🤝"
+                                )
+                        else:
+                            state.available_slots = []
+                            response_msg = (
+                                f"I couldn't find available slots for **{target_dt.strftime('%A, %B %d, %Y')}**. 😔\n\n"
+                                f"**Let's try something else:**\n"
+                                f"• A **different day** this week\n"
+                                f"• **Morning** instead of afternoon\n"
+                                f"• **Next week** if you're flexible\n\n"
+                                f"**What works better for you?** Just let me know! 📅"
+                            )
                 else:
                     # Fallback to general availability if no user message
                     available_slots = calendar_manager.get_next_available_slots(target_dt, 8)
-                
-                if available_slots:
-                    # Format the slots for display
-                    slots_info = []
-                    for i, slot in enumerate(available_slots[:8], 1):  # Show up to 8 slots
-                        try:
-                            # Handle timezone-aware datetime strings
-                            start_str = slot['start']
-                            end_str = slot['end']
-                            
-                            # Remove timezone info if present for parsing
-                            if start_str.endswith('Z'):
-                                start_str = start_str[:-1]
-                            if end_str.endswith('Z'):
-                                end_str = end_str[:-1]
-                            
-                            start_time = datetime.fromisoformat(start_str)
-                            end_time = datetime.fromisoformat(end_str)
-                            
-                            # Format time in a user-friendly way
-                            time_str = start_time.strftime('%I:%M %p')  # e.g., "2:30 PM"
-                            duration_minutes = slot.get('duration_minutes', 60)
-                            
-                            slots_info.append({
-                                'number': i,
-                                'time': time_str,
-                                'duration': f"{duration_minutes} minutes",
-                                'start': start_time.strftime('%Y-%m-%d %H:%M'),
-                                'end': end_time.strftime('%Y-%m-%d %H:%M')
-                            })
-                        except Exception as e:
-                            logger.warning(f"Error formatting slot {i}: {e}")
-                            continue
                     
-                    if slots_info:
-                        state.available_slots = slots_info
+                    if available_slots:
+                        # Format the slots for display
+                        slots_info = []
+                        for i, slot in enumerate(available_slots[:8], 1):  # Show up to 8 slots
+                            try:
+                                # Handle timezone-aware datetime strings
+                                start_str = slot['start']
+                                end_str = slot['end']
+                                
+                                # Remove timezone info if present for parsing
+                                if start_str.endswith('Z'):
+                                    start_str = start_str[:-1]
+                                if end_str.endswith('Z'):
+                                    end_str = end_str[:-1]
+                                
+                                start_time = datetime.fromisoformat(start_str)
+                                end_time = datetime.fromisoformat(end_str)
+                                
+                                # Format time in a user-friendly way
+                                time_str = start_time.strftime('%I:%M %p')  # e.g., "2:30 PM"
+                                duration_minutes = slot.get('duration_minutes', 60)
+                                
+                                slots_info.append({
+                                    'number': i,
+                                    'time': time_str,
+                                    'duration': f"{duration_minutes} minutes",
+                                    'start': start_time.strftime('%Y-%m-%d %H:%M'),
+                                    'end': end_time.strftime('%Y-%m-%d %H:%M')
+                                })
+                            except Exception as e:
+                                logger.warning(f"Error formatting slot {i}: {e}")
+                                continue
                         
-                        # Create a user-friendly response
-                        date_str = target_dt.strftime('%A, %B %d, %Y')  # e.g., "Friday, June 27, 2025"
-                        response_msg = f"Great! Here are the available time slots for **{date_str}**: 📅\n\n"
-                        
-                        for slot in slots_info:
-                            response_msg += f"**{slot['number']}.** {slot['time']} ({slot['duration']})\n"
-                        
-                        response_msg += "\n**How to choose:**\n"
-                        response_msg += "• Just tell me the **number** (like '1' or 'slot 3')\n"
-                        response_msg += "• Or tell me the **time** (like '2:30 PM')\n"
-                        response_msg += "• Or say **'yes'** to confirm the first available slot\n\n"
-                        response_msg += "**Which time works best for you?** 🤔"
-                        
-                        # Add helpful suggestions
-                        if len(slots_info) >= 3:
-                            response_msg += f"\n\n💡 **Recommendation**: I recommend slot **{slots_info[0]['number']}** ({slots_info[0]['time']}) as it's early in the day and gives you plenty of time for other activities!"
-                        elif len(slots_info) == 2:
-                            response_msg += f"\n\n💡 **Quick tip**: Both slots look great! Slot **{slots_info[0]['number']}** is earlier, and slot **{slots_info[1]['number']}** is later in the day."
+                        if slots_info:
+                            state.available_slots = slots_info
+                            
+                            # Create a user-friendly response
+                            date_str = target_dt.strftime('%A, %B %d, %Y')  # e.g., "Friday, June 27, 2025"
+                            response_msg = f"Great! Here are the available time slots for **{date_str}**: 📅\n\n"
+                            
+                            for slot in slots_info:
+                                response_msg += f"**{slot['number']}.** {slot['time']} ({slot['duration']})\n"
+                            
+                            response_msg += "\n**How to choose:**\n"
+                            response_msg += "• Just tell me the **number** (like '1' or 'slot 3')\n"
+                            response_msg += "• Or tell me the **time** (like '2:30 PM')\n"
+                            response_msg += "• Or say **'yes'** to confirm the first available slot\n\n"
+                            response_msg += "**Which time works best for you?** 🤔"
+                            
+                            # Add helpful suggestions
+                            if len(slots_info) >= 3:
+                                response_msg += f"\n\n💡 **Recommendation**: I recommend slot **{slots_info[0]['number']}** ({slots_info[0]['time']}) as it's early in the day and gives you plenty of time for other activities!"
+                            elif len(slots_info) == 2:
+                                response_msg += f"\n\n💡 **Quick tip**: Both slots look great! Slot **{slots_info[0]['number']}** is earlier, and slot **{slots_info[1]['number']}** is later in the day."
+                            else:
+                                response_msg += f"\n\n💡 **Perfect timing**: This is the only available slot for that day, so it's a great choice!"
                         else:
-                            response_msg += f"\n\n💡 **Perfect timing**: This is the only available slot for that day, so it's a great choice!"
+                            state.available_slots = []
+                            response_msg = (
+                                f"I couldn't find any available slots for **{target_dt.strftime('%A, %B %d, %Y')}**. 😔\n\n"
+                                f"**Don't worry!** Here are some alternatives:\n"
+                                f"• Try a **different date** (like tomorrow or next week)\n"
+                                f"• Ask for **morning slots** instead of afternoon\n"
+                                f"• Request a **shorter meeting** (30 minutes instead of 1 hour)\n\n"
+                                f"**What would you like to try?** I'm here to help find a time that works for you! 🤝"
+                            )
                     else:
                         state.available_slots = []
                         response_msg = (
-                            f"I couldn't find any available slots for **{target_dt.strftime('%A, %B %d, %Y')}**. 😔\n\n"
-                            f"**Don't worry!** Here are some alternatives:\n"
-                            f"• Try a **different date** (like tomorrow or next week)\n"
-                            f"• Ask for **morning slots** instead of afternoon\n"
-                            f"• Request a **shorter meeting** (30 minutes instead of 1 hour)\n\n"
-                            f"**What would you like to try?** I'm here to help find a time that works for you! 🤝"
+                            f"I couldn't find available slots for **{target_dt.strftime('%A, %B %d, %Y')}**. 😔\n\n"
+                            f"**Let's try something else:**\n"
+                            f"• A **different day** this week\n"
+                            f"• **Morning** instead of afternoon\n"
+                            f"• **Next week** if you're flexible\n\n"
+                            f"**What works better for you?** Just let me know! 📅"
                         )
-                else:
-                    state.available_slots = []
-                    response_msg = (
-                        f"I couldn't find available slots for **{target_dt.strftime('%A, %B %d, %Y')}**. 😔\n\n"
-                        f"**Let's try something else:**\n"
-                        f"• A **different day** this week\n"
-                        f"• **Morning** instead of afternoon\n"
-                        f"• **Next week** if you're flexible\n\n"
-                        f"**What works better for you?** Just let me know! 📅"
-                    )
             else:
                 state.available_slots = []
                 response_msg = (
