@@ -5,6 +5,7 @@ Date parsing utilities for the booking agent.
 from datetime import datetime, timedelta
 from typing import Dict
 import re
+import pytz
 
 def parse_date_preference(user_input: str) -> Dict:
     """
@@ -17,7 +18,9 @@ def parse_date_preference(user_input: str) -> Dict:
         Dictionary with structured date information
     """
     try:
-        today = datetime.now()
+        # Use IST timezone
+        ist_tz = pytz.timezone('Asia/Kolkata')
+        today = datetime.now(ist_tz)
         user_input_lower = user_input.lower()
         
         # Parse date

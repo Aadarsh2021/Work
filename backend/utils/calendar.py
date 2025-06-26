@@ -43,7 +43,7 @@ class GoogleCalendarManager:
             else:
                 # For OAuth, 'primary' will be replaced by the user's primary calendar
                 self.calendar_id = "primary"
-        self.timezone = pytz.timezone('UTC')
+        self.timezone = pytz.timezone('Asia/Kolkata')  # Use IST timezone
         
     def authenticate(self) -> bool:
         """Authenticate with Google Calendar API."""
@@ -143,9 +143,9 @@ class GoogleCalendarManager:
         try:
             # Ensure timezone-aware datetime objects
             if start_date.tzinfo is None:
-                start_date = start_date.replace(tzinfo=pytz.UTC)
+                start_date = start_date.replace(tzinfo=self.timezone)
             if end_date.tzinfo is None:
-                end_date = end_date.replace(tzinfo=pytz.UTC)
+                end_date = end_date.replace(tzinfo=self.timezone)
             
             # Get existing events in the time range
             events_result = self.service.events().list(
@@ -175,8 +175,8 @@ class GoogleCalendarManager:
         available_slots = []
         
         # Convert to timezone-aware datetime
-        start_date = start_date.replace(tzinfo=pytz.UTC)
-        end_date = end_date.replace(tzinfo=pytz.UTC)
+        start_date = start_date.replace(tzinfo=self.timezone)
+        end_date = end_date.replace(tzinfo=self.timezone)
         
         # Business hours: 9 AM to 5 PM
         business_start = 9
@@ -202,19 +202,19 @@ class GoogleCalendarManager:
                             # Remove timezone info if present
                             if event_start_str.endswith('Z'):
                                 event_start_str = event_start_str[:-1]
-                            event_start = datetime.fromisoformat(event_start_str).replace(tzinfo=pytz.UTC)
+                            event_start = datetime.fromisoformat(event_start_str).replace(tzinfo=self.timezone)
                         else:
                             # Date-only format
-                            event_start = datetime.fromisoformat(event_start_str).replace(tzinfo=pytz.UTC)
+                            event_start = datetime.fromisoformat(event_start_str).replace(tzinfo=self.timezone)
                         
                         if 'T' in event_end_str:
                             # Remove timezone info if present
                             if event_end_str.endswith('Z'):
                                 event_end_str = event_end_str[:-1]
-                            event_end = datetime.fromisoformat(event_end_str).replace(tzinfo=pytz.UTC)
+                            event_end = datetime.fromisoformat(event_end_str).replace(tzinfo=self.timezone)
                         else:
                             # Date-only format
-                            event_end = datetime.fromisoformat(event_end_str).replace(tzinfo=pytz.UTC)
+                            event_end = datetime.fromisoformat(event_end_str).replace(tzinfo=self.timezone)
                         
                         # Check for overlap
                         if (current_time < event_end and slot_end > event_start):
@@ -258,9 +258,9 @@ class GoogleCalendarManager:
         try:
             # Ensure datetime objects are timezone-aware
             if start_time.tzinfo is None:
-                start_time = start_time.replace(tzinfo=pytz.UTC)
+                start_time = start_time.replace(tzinfo=self.timezone)
             if end_time.tzinfo is None:
-                end_time = end_time.replace(tzinfo=pytz.UTC)
+                end_time = end_time.replace(tzinfo=self.timezone)
             
             print(f"🔍 Attempting to book appointment:")
             print(f"   Title: {title}")
@@ -278,15 +278,17 @@ class GoogleCalendarManager:
             if not availability:
                 return {'success': False, 'error': 'Time slot no longer available'}
             
-            # Create the event with better timezone handling
+            # Create the event with IST timezone
             event = {
                 'summary': title,
                 'description': description,
                 'start': {
                     'dateTime': start_time.isoformat(),
+                    'timeZone': 'Asia/Kolkata',
                 },
                 'end': {
                     'dateTime': end_time.isoformat(),
+                    'timeZone': 'Asia/Kolkata',
                 },
                 'reminders': {
                     'useDefault': False,
@@ -345,9 +347,9 @@ class GoogleCalendarManager:
         
         # Ensure timezone-aware datetime objects
         if start_date.tzinfo is None:
-            start_date = start_date.replace(tzinfo=pytz.UTC)
+            start_date = start_date.replace(tzinfo=self.timezone)
         if end_date.tzinfo is None:
-            end_date = end_date.replace(tzinfo=pytz.UTC)
+            end_date = end_date.replace(tzinfo=self.timezone)
         
         available_slots = self.check_availability(start_date, end_date)
         return available_slots[:count]
@@ -392,9 +394,9 @@ class GoogleCalendarManager:
         
         # Ensure timezone-aware datetime objects
         if start_date.tzinfo is None:
-            start_date = start_date.replace(tzinfo=pytz.UTC)
+            start_date = start_date.replace(tzinfo=self.timezone)
         if end_date.tzinfo is None:
-            end_date = end_date.replace(tzinfo=pytz.UTC)
+            end_date = end_date.replace(tzinfo=self.timezone)
         
         # Get available slots within the time window
         available_slots = self.check_availability(start_date, end_date)
