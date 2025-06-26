@@ -14,6 +14,7 @@ import os
 
 # API Configuration
 API_BASE_URL = os.getenv("API_BASE_URL", "https://tailortalk-backend-em9b.onrender.com")
+API_TOKEN = os.getenv("API_TOKEN", st.secrets.get("API_TOKEN", ""))  # Get from environment or Streamlit secrets
 
 # Initialize session state
 if "messages" not in st.session_state:
@@ -240,7 +241,8 @@ st.markdown("""
 def check_api_health():
     """Check if the backend API is healthy."""
     try:
-        response = requests.get(f"{API_BASE_URL}/health", timeout=5)
+        headers = {"Authorization": f"Bearer {API_TOKEN}"} if API_TOKEN else {}
+        response = requests.get(f"{API_BASE_URL}/health", headers=headers, timeout=5)
         st.session_state.last_health_check = {
             "status": response.status_code == 200,
             "timestamp": datetime.now().isoformat(),
@@ -258,12 +260,14 @@ def check_api_health():
 def send_message(message):
     """Send a message to the backend API, including session_id."""
     try:
+        headers = {"Authorization": f"Bearer {API_TOKEN}"} if API_TOKEN else {}
         response = requests.post(
             f"{API_BASE_URL}/chat",
             json={
                 "message": message,
                 "session_id": st.session_state.session_id
             },
+            headers=headers,
             timeout=30
         )
         if response.status_code == 200:
