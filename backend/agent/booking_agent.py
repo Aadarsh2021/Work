@@ -90,6 +90,7 @@ class AgentState(BaseModel):
     validation_errors: List[str] = Field(default_factory=list)  # Track validation errors
     session_id: Optional[str] = Field(default=None)  # Session tracking
     simple_greeting: bool = Field(default=False)  # Flag for simple greetings
+    auto_selected_slot: bool = Field(default=False)  # Flag for auto-selected slots
 
 def create_booking_agent():
     """Create the LangGraph booking agent."""
@@ -143,9 +144,10 @@ def create_booking_agent():
     
     workflow.add_conditional_edges(
         "check_availability",
-        lambda state: "handle_error" if state.get('error_message') else ("confirm_booking" if state.get('available_slots') else "end"),
+        lambda state: "handle_error" if state.get('error_message') else ("book_appointment" if state.get('auto_selected_slot', False) else ("confirm_booking" if state.get('available_slots') else "end")),
         {
             "confirm_booking": "confirm_booking",
+            "book_appointment": "book_appointment",
             "handle_error": "handle_error",
             "end": END
         }
@@ -620,8 +622,8 @@ def check_availability_node(state: AgentState) -> AgentState:
                         # Update appointment details with the selected slot
                         state.appointment_details.update({
                             'title': f"Appointment - {state.appointment_details.get('parsed_input', 'Meeting')}",
-                            'start_time': start_dt.strftime('%Y-%m-%d %H:%M'),
-                            'end_time': end_dt.strftime('%Y-%m-%d %H:%M'),
+                            'start_time': start_time_str,
+                            'end_time': end_time_str,
                             'start_hour': start_dt.hour,
                             'selected_slot': slot_info
                         })
@@ -641,6 +643,7 @@ def check_availability_node(state: AgentState) -> AgentState:
                             f"• \"**Change**\" to modify the time\n\n"
                             f"**I'm ready to schedule this for you!** ✨"
                         )
+                        state.auto_selected_slot = True
                     else:
                         # For general requests, show all available slots
                         if available_slots:
