@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+configure_app.py
+
+# Virtual environments
+venv/
+env/
+
+# Secrets and credentials
+.env
+.env.*
+*.env
+secrets.toml
+credentials.json
+client_secret.json
+
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Test and coverage
+.coverage
+htmlcov/
+.tox/
+
+# Misc
+*.bak
+*.swp 
