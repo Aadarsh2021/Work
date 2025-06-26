@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from langchain.tools import tool
 from backend.utils.calendar import GoogleCalendarManager
-import re
+from backend.utils.date_parser import parse_date_preference
 
 # Initialize calendar manager
 calendar_manager = GoogleCalendarManager()
@@ -147,91 +147,4 @@ def get_next_available_slots(date: str, count: int = 5) -> str:
         return f"Available time slots for {date}: {slots_info}"
         
     except Exception as e:
-        return f"Error getting available slots: {str(e)}"
-
-@tool
-def parse_date_preference(user_input: str) -> Dict:
-    """
-    Parse user's natural language date preference and convert to structured format.
-    
-    Args:
-        user_input: Natural language input (e.g., "tomorrow afternoon", "next Friday", "next day")
-    
-    Returns:
-        Dictionary with structured date information
-    """
-    try:
-        today = datetime.now()
-        user_input_lower = user_input.lower()
-        
-        # Parse date
-        if "tomorrow" in user_input_lower or "next day" in user_input_lower:
-            target_date = today + timedelta(days=1)
-        elif "next week" in user_input_lower:
-            target_date = today + timedelta(days=7)
-        elif "next friday" in user_input_lower:
-            days_until_friday = (4 - today.weekday()) % 7
-            if days_until_friday == 0:
-                days_until_friday = 7
-            target_date = today + timedelta(days=days_until_friday)
-        elif "next monday" in user_input_lower:
-            days_until_monday = (0 - today.weekday()) % 7
-            if days_until_monday == 0:
-                days_until_monday = 7
-            target_date = today + timedelta(days=days_until_monday)
-        else:
-            # Default to tomorrow if no specific date mentioned
-            target_date = today + timedelta(days=1)
-        
-        # Parse specific time first (e.g., "2 PM", "14:00")
-        time_12h = re.search(r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)', user_input_lower)
-        if time_12h:
-            hour = int(time_12h.group(1))
-            minute = int(time_12h.group(2)) if time_12h.group(2) else 0
-            period = time_12h.group(3)
-            
-            # Convert to 24-hour format
-            if period == 'pm' and hour != 12:
-                hour += 12
-            elif period == 'am' and hour == 12:
-                hour = 0
-                
-            time_preference = f"specific time ({hour:02d}:{minute:02d})"
-            start_hour = hour
-            
-        # Try 24-hour format (e.g., "14:00")
-        elif (time_24h := re.search(r'(\d{1,2}):(\d{2})', user_input_lower)):
-            hour = int(time_24h.group(1))
-            minute = int(time_24h.group(2))
-            if 0 <= hour < 24 and 0 <= minute < 60:
-                time_preference = f"specific time ({hour:02d}:{minute:02d})"
-                start_hour = hour
-                
-        # Fall back to general time preferences
-        elif "morning" in user_input_lower:
-            time_preference = "morning (9 AM - 12 PM)"
-            start_hour = 9
-        elif "afternoon" in user_input_lower:
-            time_preference = "afternoon (1 PM - 5 PM)"
-            start_hour = 13
-        elif "evening" in user_input_lower:
-            time_preference = "evening (5 PM - 7 PM)"
-            start_hour = 17
-        else:
-            time_preference = "business hours (9 AM - 5 PM)"
-            start_hour = 10
-        
-        return {
-            'target_date': target_date.strftime('%Y-%m-%d'),
-            'time_preference': time_preference,
-            'start_hour': start_hour,
-            'duration': 60  # Default 1 hour
-        }
-        
-    except Exception as e:
-        return {
-            'target_date': (today + timedelta(days=1)).strftime('%Y-%m-%d'),
-            'time_preference': 'business hours (9 AM - 5 PM)',
-            'start_hour': 10,
-            'duration': 60
-        } 
+        return f"Error getting available slots: {str(e)}" 
