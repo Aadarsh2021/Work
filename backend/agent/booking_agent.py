@@ -578,7 +578,20 @@ def check_availability_node(state: AgentState) -> AgentState:
             if calendar_manager.authenticate():
                 # Parse date without timezone for local date
                 target_dt = datetime.fromisoformat(target_date)
-                available_slots = calendar_manager.get_next_available_slots(target_dt, 8)  # Get more slots
+                
+                # Use suggest_time_slots instead of get_next_available_slots to handle specific times
+                # Get the last user message to pass to suggest_time_slots
+                last_user_message = None
+                for msg in reversed(state.messages):
+                    if msg["role"] == "user":
+                        last_user_message = msg["content"]
+                        break
+                
+                if last_user_message:
+                    available_slots = calendar_manager.suggest_time_slots(last_user_message)
+                else:
+                    # Fallback to general availability if no user message
+                    available_slots = calendar_manager.get_next_available_slots(target_dt, 8)
                 
                 if available_slots:
                     # Format the slots for display
