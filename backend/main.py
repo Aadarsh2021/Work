@@ -25,7 +25,7 @@ from prometheus_client import CollectorRegistry, push_to_gateway
 import logging
 from logging.handlers import RotatingFileHandler
 
-from .agent.booking_agent import booking_agent, AgentState
+from backend.agent.booking_agent import booking_agent, AgentState
 
 # Load environment variables
 load_dotenv()
