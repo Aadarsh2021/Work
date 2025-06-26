@@ -28,16 +28,41 @@ def parse_date_preference(user_input: str) -> Dict:
             target_date = today + timedelta(days=1)
         elif "next week" in user_input_lower:
             target_date = today + timedelta(days=7)
-        elif "next friday" in user_input_lower:
-            days_until_friday = (4 - today.weekday()) % 7
-            if days_until_friday == 0:
-                days_until_friday = 7
-            target_date = today + timedelta(days=days_until_friday)
         elif "next monday" in user_input_lower:
             days_until_monday = (0 - today.weekday()) % 7
             if days_until_monday == 0:
                 days_until_monday = 7
             target_date = today + timedelta(days=days_until_monday)
+        elif "next tuesday" in user_input_lower:
+            days_until_tuesday = (1 - today.weekday()) % 7
+            if days_until_tuesday == 0:
+                days_until_tuesday = 7
+            target_date = today + timedelta(days=days_until_tuesday)
+        elif "next wednesday" in user_input_lower:
+            days_until_wednesday = (2 - today.weekday()) % 7
+            if days_until_wednesday == 0:
+                days_until_wednesday = 7
+            target_date = today + timedelta(days=days_until_wednesday)
+        elif "next thursday" in user_input_lower:
+            days_until_thursday = (3 - today.weekday()) % 7
+            if days_until_thursday == 0:
+                days_until_thursday = 7
+            target_date = today + timedelta(days=days_until_thursday)
+        elif "next friday" in user_input_lower:
+            days_until_friday = (4 - today.weekday()) % 7
+            if days_until_friday == 0:
+                days_until_friday = 7
+            target_date = today + timedelta(days=days_until_friday)
+        elif "next saturday" in user_input_lower:
+            days_until_saturday = (5 - today.weekday()) % 7
+            if days_until_saturday == 0:
+                days_until_saturday = 7
+            target_date = today + timedelta(days=days_until_saturday)
+        elif "next sunday" in user_input_lower:
+            days_until_sunday = (6 - today.weekday()) % 7
+            if days_until_sunday == 0:
+                days_until_sunday = 7
+            target_date = today + timedelta(days=days_until_sunday)
         else:
             # Default to tomorrow if no specific date mentioned
             target_date = today + timedelta(days=1)
