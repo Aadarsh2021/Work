@@ -59,19 +59,30 @@ class GoogleCalendarManager:
     def _authenticate_service_account(self) -> bool:
         """Authenticate using service account credentials."""
         try:
-            # Check if credentials file exists
-            if not os.path.exists(self.credentials_file):
-                print(f"Service account credentials file {self.credentials_file} not found")
-                return False
+            # First try to get credentials from environment variable
+            import os
+            credentials_json = os.getenv('GOOGLE_CALENDAR_CREDENTIALS')
             
-            # Load service account credentials
-            credentials = service_account.Credentials.from_service_account_file(
-                self.credentials_file, scopes=SCOPES
-            )
+            if credentials_json:
+                # Use credentials from environment variable
+                import json
+                credentials_data = json.loads(credentials_json)
+                credentials = service_account.Credentials.from_service_account_info(
+                    credentials_data, scopes=SCOPES
+                )
+                print("✅ Service account authentication from environment variable successful")
+            elif os.path.exists(self.credentials_file):
+                # Fallback to credentials file
+                credentials = service_account.Credentials.from_service_account_file(
+                    self.credentials_file, scopes=SCOPES
+                )
+                print("✅ Service account authentication from file successful")
+            else:
+                print(f"❌ No credentials found - neither environment variable nor file {self.credentials_file}")
+                return False
             
             # Build the service
             self.service = build('calendar', 'v3', credentials=credentials)
-            print("✅ Service account authentication successful")
             return True
             
         except Exception as e:
