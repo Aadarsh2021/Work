@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from langchain.tools import tool
 from backend.utils.calendar import GoogleCalendarManager
+import re
 
 # Initialize calendar manager
 calendar_manager = GoogleCalendarManager()
@@ -182,8 +183,32 @@ def parse_date_preference(user_input: str) -> Dict:
             # Default to tomorrow if no specific date mentioned
             target_date = today + timedelta(days=1)
         
-        # Parse time preference
-        if "morning" in user_input_lower:
+        # Parse specific time first (e.g., "2 PM", "14:00")
+        time_12h = re.search(r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)', user_input_lower)
+        if time_12h:
+            hour = int(time_12h.group(1))
+            minute = int(time_12h.group(2)) if time_12h.group(2) else 0
+            period = time_12h.group(3)
+            
+            # Convert to 24-hour format
+            if period == 'pm' and hour != 12:
+                hour += 12
+            elif period == 'am' and hour == 12:
+                hour = 0
+                
+            time_preference = f"specific time ({hour:02d}:{minute:02d})"
+            start_hour = hour
+            
+        # Try 24-hour format (e.g., "14:00")
+        elif (time_24h := re.search(r'(\d{1,2}):(\d{2})', user_input_lower)):
+            hour = int(time_24h.group(1))
+            minute = int(time_24h.group(2))
+            if 0 <= hour < 24 and 0 <= minute < 60:
+                time_preference = f"specific time ({hour:02d}:{minute:02d})"
+                start_hour = hour
+                
+        # Fall back to general time preferences
+        elif "morning" in user_input_lower:
             time_preference = "morning (9 AM - 12 PM)"
             start_hour = 9
         elif "afternoon" in user_input_lower:
