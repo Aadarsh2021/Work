@@ -14,6 +14,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import pytz
+import re
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/calendar']
@@ -352,30 +353,76 @@ class GoogleCalendarManager:
         Suggest time slots based on user preference.
         
         Args:
-            user_preference: Natural language preference (e.g., "tomorrow afternoon")
+            user_preference: Natural language preference (e.g., "tomorrow afternoon", "2 PM", "14:00")
             
         Returns:
             List of suggested time slots
         """
         # Parse user preference and suggest appropriate slots
-        # This is a simplified implementation - in production, you'd use NLP
         today = datetime.now()
+        user_preference_lower = user_preference.lower()
         
-        if "tomorrow" in user_preference.lower():
+        # Parse date
+        if "tomorrow" in user_preference_lower:
             target_date = today + timedelta(days=1)
-        elif "next week" in user_preference.lower():
+        elif "next week" in user_preference_lower:
             target_date = today + timedelta(days=7)
+        elif "next friday" in user_preference_lower:
+            days_until_friday = (4 - today.weekday()) % 7
+            if days_until_friday == 0:
+                days_until_friday = 7
+            target_date = today + timedelta(days=days_until_friday)
         else:
             target_date = today + timedelta(days=1)
         
-        if "afternoon" in user_preference.lower():
+        # Parse specific time first (e.g., "2 PM", "14:00")
+        time_12h = re.search(r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)', user_preference_lower)
+        if time_12h:
+            hour = int(time_12h.group(1))
+            minute = int(time_12h.group(2)) if time_12h.group(2) else 0
+            period = time_12h.group(3)
+            
+            # Convert to 24-hour format
+            if period == 'pm' and hour != 12:
+                hour += 12
+            elif period == 'am' and hour == 12:
+                hour = 0
+                
+            start_hour = hour
+            start_minute = minute
+            
+        # Try 24-hour format (e.g., "14:00")
+        elif (time_24h := re.search(r'(\d{1,2}):(\d{2})', user_preference_lower)):
+            hour = int(time_24h.group(1))
+            minute = int(time_24h.group(2))
+            if 0 <= hour < 24 and 0 <= minute < 60:
+                start_hour = hour
+                start_minute = minute
+                
+        # Fall back to general time preferences
+        elif "afternoon" in user_preference_lower:
             start_hour = 13  # 1 PM
-        elif "morning" in user_preference.lower():
+            start_minute = 0
+        elif "morning" in user_preference_lower:
             start_hour = 9   # 9 AM
+            start_minute = 0
         else:
             start_hour = 10  # Default to 10 AM
+            start_minute = 0
         
-        start_date = target_date.replace(hour=start_hour, minute=0, second=0, microsecond=0)
+        # Ensure the time is within business hours (9 AM - 5 PM)
+        start_hour = max(9, min(start_hour, 16))  # Cap at 4 PM to allow for 1-hour slots
+        
+        start_date = target_date.replace(hour=start_hour, minute=start_minute, second=0, microsecond=0)
         end_date = target_date.replace(hour=17, minute=0, second=0, microsecond=0)
+        
+        # For specific times, narrow the search window to +/- 1 hour
+        if time_12h or 'time_24h' in locals():
+            buffer_hours = 1
+            start_date = start_date - timedelta(hours=buffer_hours)
+            end_date = start_date + timedelta(hours=buffer_hours * 2)
+            # Ensure we stay within business hours
+            start_date = max(start_date, target_date.replace(hour=9, minute=0))
+            end_date = min(end_date, target_date.replace(hour=17, minute=0))
         
         return self.check_availability(start_date, end_date) 
