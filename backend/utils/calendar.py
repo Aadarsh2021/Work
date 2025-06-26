@@ -77,8 +77,14 @@ class GoogleCalendarManager:
                     self.credentials_file, scopes=SCOPES
                 )
                 print("✅ Service account authentication from file successful")
+            elif os.path.exists('/etc/secrets/credentials.json'):
+                # Check Render secrets location
+                credentials = service_account.Credentials.from_service_account_file(
+                    '/etc/secrets/credentials.json', scopes=SCOPES
+                )
+                print("✅ Service account authentication from Render secrets successful")
             else:
-                print(f"❌ No credentials found - neither environment variable nor file {self.credentials_file}")
+                print(f"❌ No credentials found - checked environment variable, {self.credentials_file}, and /etc/secrets/credentials.json")
                 return False
             
             # Build the service
