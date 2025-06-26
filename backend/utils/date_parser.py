@@ -39,6 +39,10 @@ def parse_date_preference(user_input: str) -> Dict:
             # Default to tomorrow if no specific date mentioned
             target_date = today + timedelta(days=1)
         
+        # Initialize time preference and start hour
+        time_preference = "business hours (9 AM - 5 PM)"
+        start_hour = 10
+        
         # Parse specific time first (e.g., "2 PM", "14:00")
         time_12h = re.search(r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)', user_input_lower)
         if time_12h:
@@ -63,7 +67,7 @@ def parse_date_preference(user_input: str) -> Dict:
                 time_preference = f"specific time ({hour:02d}:{minute:02d})"
                 start_hour = hour
                 
-        # Fall back to general time preferences
+        # Fall back to general time preferences only if no specific time was found
         elif "morning" in user_input_lower:
             time_preference = "morning (9 AM - 12 PM)"
             start_hour = 9
@@ -73,9 +77,6 @@ def parse_date_preference(user_input: str) -> Dict:
         elif "evening" in user_input_lower:
             time_preference = "evening (5 PM - 7 PM)"
             start_hour = 17
-        else:
-            time_preference = "business hours (9 AM - 5 PM)"
-            start_hour = 10
         
         return {
             'target_date': target_date.strftime('%Y-%m-%d'),
