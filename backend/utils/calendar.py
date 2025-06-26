@@ -284,11 +284,9 @@ class GoogleCalendarManager:
                 'description': description,
                 'start': {
                     'dateTime': start_time.isoformat(),
-                    'timeZone': 'UTC',
                 },
                 'end': {
                     'dateTime': end_time.isoformat(),
-                    'timeZone': 'UTC',
                 },
                 'reminders': {
                     'useDefault': False,
@@ -345,6 +343,12 @@ class GoogleCalendarManager:
         start_date = date.replace(hour=9, minute=0, second=0, microsecond=0)
         end_date = date.replace(hour=17, minute=0, second=0, microsecond=0)
         
+        # Ensure timezone-aware datetime objects
+        if start_date.tzinfo is None:
+            start_date = start_date.replace(tzinfo=pytz.UTC)
+        if end_date.tzinfo is None:
+            end_date = end_date.replace(tzinfo=pytz.UTC)
+        
         available_slots = self.check_availability(start_date, end_date)
         return available_slots[:count]
     
@@ -385,6 +389,12 @@ class GoogleCalendarManager:
             else:
                 start_date = target_date.replace(hour=9, minute=0, second=0, microsecond=0)
                 end_date = target_date.replace(hour=17, minute=0, second=0, microsecond=0)
+        
+        # Ensure timezone-aware datetime objects
+        if start_date.tzinfo is None:
+            start_date = start_date.replace(tzinfo=pytz.UTC)
+        if end_date.tzinfo is None:
+            end_date = end_date.replace(tzinfo=pytz.UTC)
         
         # Get available slots within the time window
         available_slots = self.check_availability(start_date, end_date)
