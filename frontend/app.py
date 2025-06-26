@@ -329,6 +329,41 @@ def show_typing_indicator():
     </div>
     '''
 
+def handle_quick_action(action: str):
+    """Handle a quick action button click."""
+    try:
+        # Add the action to messages
+        st.session_state.messages.append({"role": "user", "content": action})
+        
+        # Show typing indicator
+        st.session_state.is_typing = True
+        
+        # Send to backend
+        response = send_message(action)
+        
+        # Hide typing indicator
+        st.session_state.is_typing = False
+        
+        if "error" not in response or response.get("error") is None:
+            # Add AI response
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": response.get("response", "I'm sorry, I couldn't process your request."),
+                "booking_confirmed": response.get("booking_confirmed", False),
+                "appointment_details": response.get("appointment_details"),
+                "error": response.get("error")
+            })
+        else:
+            # Add error message
+            error_msg = f"Sorry, I'm having trouble connecting right now. Please try again in a moment. ({response['error']})"
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": error_msg,
+                "error": response["error"]
+            })
+    except Exception as e:
+        st.error(f"Error processing quick action: {str(e)}")
+
 # Main app
 def main():
     # Header
@@ -502,8 +537,8 @@ def main():
         ]
         
         for action in quick_actions:
-            if st.button(action, key=f"quick_{action[:20]}"):
-                st.session_state.messages.append({"role": "user", "content": action})
+            if st.button(action, key=f"quick_{action[:20]}", use_container_width=True):
+                handle_quick_action(action)
                 st.rerun()
         
         st.markdown("---")
@@ -515,30 +550,15 @@ def main():
         if not api_healthy:
             st.error("⚠️ Backend is offline. Please check the backend server.")
         
-        # Debug section (collapsible)
-        with st.expander("🔍 Debug Info"):
-            if hasattr(st.session_state, 'last_request'):
-                st.markdown("**Last Request:**")
-                st.code(json.dumps(st.session_state.last_request, indent=2))
-            if hasattr(st.session_state, 'last_response'):
-                st.markdown("**Last Response:**")
-                st.code(json.dumps(st.session_state.last_response, indent=2))
-
-        # Sidebar with debug info
-        st.title("Debug Information")
-        st.write("Backend URL:", API_BASE_URL)
-        st.write("Session ID:", st.session_state.session_id)
-        
-        # Health check status
-        is_healthy = check_api_health()
-        if is_healthy:
-            st.success("Backend is connected")
-        else:
-            st.error("Backend is not connected")
-        
-        if "last_health_check" in st.session_state:
-            with st.expander("Health Check Details"):
-                st.write(st.session_state.last_health_check)
+        # Debug section
+        with st.expander("Debug Information"):
+            st.write("Backend URL:", API_BASE_URL)
+            st.write("Session ID:", st.session_state.session_id)
+            st.write("API Token configured:", bool(API_TOKEN))
+            
+            if "last_health_check" in st.session_state:
+                with st.expander("Health Check Details"):
+                    st.write(st.session_state.last_health_check)
 
 if __name__ == "__main__":
     main() 
