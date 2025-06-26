@@ -544,6 +544,9 @@ def main():
         st.markdown("---")
         st.markdown("### 📊 Info")
         st.markdown(f"**Messages:** {len(st.session_state.messages)}")
+        
+        # Status indicator
+        api_healthy = check_api_health()
         st.markdown(f"**Status:** {'🟢 Online' if api_healthy else '🔴 Offline'}")
         st.markdown(f"**API URL:** `{API_BASE_URL}`")
         
@@ -551,14 +554,14 @@ def main():
             st.error("⚠️ Backend is offline. Please check the backend server.")
         
         # Debug section
-        with st.expander("Debug Information"):
-            st.write("Backend URL:", API_BASE_URL)
-            st.write("Session ID:", st.session_state.session_id)
-            st.write("API Token configured:", bool(API_TOKEN))
-            
-            if "last_health_check" in st.session_state:
-                with st.expander("Health Check Details"):
-                    st.write(st.session_state.last_health_check)
+        st.markdown("### 🔍 Debug Information")
+        st.write("Backend URL:", API_BASE_URL)
+        st.write("Session ID:", st.session_state.session_id)
+        st.write("API Token configured:", bool(API_TOKEN))
+        
+        if "last_health_check" in st.session_state:
+            st.markdown("**Last Health Check:**")
+            st.json(st.session_state.last_health_check)
 
 if __name__ == "__main__":
     main() 
