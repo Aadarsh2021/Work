@@ -144,14 +144,21 @@ app = FastAPI(
 app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=["*"] if os.getenv("ENVIRONMENT") != "production" else [
-        "localhost", "127.0.0.1", "your-domain.com"
+        "localhost",
+        "127.0.0.1",
+        "*.streamlit.app",  # Allow Streamlit Cloud apps
+        "*.onrender.com"    # Allow Render domains
     ]
 )
 
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if os.getenv("ENVIRONMENT") != "production" else [
-        "https://your-frontend-domain.com"
+    allow_origins=[
+        "http://localhost:8501",
+        "https://localhost:8501",
+        "https://*.streamlit.app",  # Allow Streamlit Cloud apps
+        "https://*.onrender.com"    # Allow Render domains
     ],
     allow_credentials=True,
     allow_methods=["*"],

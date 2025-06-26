@@ -12,6 +12,17 @@ from typing import Dict, List, Optional
 import uuid
 import os
 
+# API Configuration
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
+
+# Initialize session state
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
+if "is_typing" not in st.session_state:
+    st.session_state.is_typing = False
+
 # Page configuration
 st.set_page_config(
     page_title="TailorTalk AI - Appointment Booking Assistant",
@@ -226,17 +237,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize session state
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "is_typing" not in st.session_state:
-    st.session_state.is_typing = False
-if "session_id" not in st.session_state:
-    st.session_state.session_id = str(uuid.uuid4())
-
-# API configuration
-API_BASE_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
-
 def check_api_health():
     """Check if the backend API is healthy."""
     try:
@@ -248,6 +248,15 @@ def check_api_health():
 def send_message(message):
     """Send a message to the backend API, including session_id."""
     try:
+        # Log the request for debugging
+        st.session_state.last_request = {
+            "url": f"{API_BASE_URL}/chat",
+            "data": {
+                "message": message,
+                "session_id": st.session_state.session_id
+            }
+        }
+        
         response = requests.post(
             f"{API_BASE_URL}/chat",
             json={
@@ -257,24 +266,40 @@ def send_message(message):
             timeout=30
         )
         
+        # Log the response status and headers for debugging
+        st.session_state.last_response = {
+            "status_code": response.status_code,
+            "headers": dict(response.headers)
+        }
+        
         if response.status_code == 200:
             response_data = response.json()
             return response_data
         else:
-            error_detail = f"API error: {response.status_code}"
+            error_detail = f"API error (Status: {response.status_code})"
             try:
                 error_data = response.json()
                 if 'detail' in error_data:
                     error_detail = f"API error: {error_data['detail']}"
-            except Exception as e:
-                pass
+            except Exception:
+                if response.text:
+                    error_detail = f"API error: {response.text[:200]}"
             return {"error": error_detail}
     except requests.exceptions.Timeout:
-        return {"error": "Request timeout - server is taking too long to respond"}
+        return {
+            "error": "Request timeout - server is taking too long to respond. "
+                    f"API URL: {API_BASE_URL}"
+        }
     except requests.exceptions.ConnectionError as e:
-        return {"error": "Connection error - cannot reach the server"}
+        return {
+            "error": f"Connection error - cannot reach the server at {API_BASE_URL}. "
+                    f"Error: {str(e)}"
+        }
     except Exception as e:
-        return {"error": f"Unexpected error: {str(e)}"}
+        return {
+            "error": f"Unexpected error: {str(e)}. "
+                    f"API URL: {API_BASE_URL}"
+        }
 
 def format_booking_details(details):
     if not details:
@@ -499,9 +524,19 @@ def main():
         st.markdown("### 📊 Info")
         st.markdown(f"**Messages:** {len(st.session_state.messages)}")
         st.markdown(f"**Status:** {'🟢 Online' if api_healthy else '🔴 Offline'}")
+        st.markdown(f"**API URL:** `{API_BASE_URL}`")
         
         if not api_healthy:
-            st.error("⚠️ Backend is offline. Please start the backend server.")
+            st.error("⚠️ Backend is offline. Please check the backend server.")
+        
+        # Debug section (collapsible)
+        with st.expander("🔍 Debug Info"):
+            if hasattr(st.session_state, 'last_request'):
+                st.markdown("**Last Request:**")
+                st.code(json.dumps(st.session_state.last_request, indent=2))
+            if hasattr(st.session_state, 'last_response'):
+                st.markdown("**Last Response:**")
+                st.code(json.dumps(st.session_state.last_response, indent=2))
 
 if __name__ == "__main__":
     main() 
