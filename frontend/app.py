@@ -13,7 +13,7 @@ import uuid
 import os
 
 # API Configuration
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://tailortalk-backend-em9b.onrender.com")
 
 # Initialize session state
 if "messages" not in st.session_state:
@@ -241,22 +241,23 @@ def check_api_health():
     """Check if the backend API is healthy."""
     try:
         response = requests.get(f"{API_BASE_URL}/health", timeout=5)
+        st.session_state.last_health_check = {
+            "status": response.status_code == 200,
+            "timestamp": datetime.now().isoformat(),
+            "response": response.json() if response.status_code == 200 else None
+        }
         return response.status_code == 200
-    except:
+    except Exception as e:
+        st.session_state.last_health_check = {
+            "status": False,
+            "timestamp": datetime.now().isoformat(),
+            "error": str(e)
+        }
         return False
 
 def send_message(message):
     """Send a message to the backend API, including session_id."""
     try:
-        # Log the request for debugging
-        st.session_state.last_request = {
-            "url": f"{API_BASE_URL}/chat",
-            "data": {
-                "message": message,
-                "session_id": st.session_state.session_id
-            }
-        }
-        
         response = requests.post(
             f"{API_BASE_URL}/chat",
             json={
@@ -265,40 +266,21 @@ def send_message(message):
             },
             timeout=30
         )
-        
-        # Log the response status and headers for debugging
-        st.session_state.last_response = {
-            "status_code": response.status_code,
-            "headers": dict(response.headers)
-        }
-        
         if response.status_code == 200:
-            response_data = response.json()
-            return response_data
+            return response.json()
         else:
-            error_detail = f"API error (Status: {response.status_code})"
-            try:
-                error_data = response.json()
-                if 'detail' in error_data:
-                    error_detail = f"API error: {error_data['detail']}"
-            except Exception:
-                if response.text:
-                    error_detail = f"API error: {response.text[:200]}"
-            return {"error": error_detail}
-    except requests.exceptions.Timeout:
-        return {
-            "error": "Request timeout - server is taking too long to respond. "
-                    f"API URL: {API_BASE_URL}"
-        }
-    except requests.exceptions.ConnectionError as e:
-        return {
-            "error": f"Connection error - cannot reach the server at {API_BASE_URL}. "
-                    f"Error: {str(e)}"
-        }
+            st.error(f"Error: {response.status_code} - {response.text}")
+            return {
+                "response": f"Sorry, I encountered an error (HTTP {response.status_code}). Please try again.",
+                "error": response.text,
+                "session_id": st.session_state.session_id
+            }
     except Exception as e:
+        st.error(f"Connection error: {str(e)}")
         return {
-            "error": f"Unexpected error: {str(e)}. "
-                    f"API URL: {API_BASE_URL}"
+            "response": "Sorry, I couldn't connect to the backend. Please try again.",
+            "error": str(e),
+            "session_id": st.session_state.session_id
         }
 
 def format_booking_details(details):
@@ -348,8 +330,8 @@ def main():
     # Header
     st.markdown("""
     <div class="header">
-        <h1>🤖 TailorTalk AI</h1>
-        <p>Your Intelligent Appointment Booking Assistant</p>
+        <h1>TailorTalk AI - Appointment Booking Assistant</h1>
+        <p>Your intelligent scheduling companion</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -537,6 +519,22 @@ def main():
             if hasattr(st.session_state, 'last_response'):
                 st.markdown("**Last Response:**")
                 st.code(json.dumps(st.session_state.last_response, indent=2))
+
+        # Sidebar with debug info
+        st.title("Debug Information")
+        st.write("Backend URL:", API_BASE_URL)
+        st.write("Session ID:", st.session_state.session_id)
+        
+        # Health check status
+        is_healthy = check_api_health()
+        if is_healthy:
+            st.success("Backend is connected")
+        else:
+            st.error("Backend is not connected")
+        
+        if "last_health_check" in st.session_state:
+            with st.expander("Health Check Details"):
+                st.write(st.session_state.last_health_check)
 
 if __name__ == "__main__":
     main() 

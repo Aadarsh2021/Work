@@ -157,7 +157,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:8501",
         "https://localhost:8501",
-        "https://*.streamlit.app",  # Allow Streamlit Cloud apps
+        "https://tailortalk-frontend.streamlit.app",  # Streamlit app domain
+        "https://*.streamlit.app",  # Allow all Streamlit subdomains
         "https://*.onrender.com"    # Allow Render domains
     ],
     allow_credentials=True,
