@@ -27,118 +27,61 @@ def to_rfc3339(dt):
     return s
 
 class GoogleCalendarManager:
-    """Manages Google Calendar operations for appointment booking."""
+    """Google Calendar Manager for handling appointments."""
     
-    def __init__(self, credentials_file: str = "credentials.json", use_service_account: bool = True, calendar_id: str = None):
-        self.credentials_file = credentials_file
-        self.use_service_account = use_service_account
+    def __init__(self, use_service_account: bool = False):
+        """Initialize the calendar manager."""
         self.service = None
-        # Allow calendar_id override, otherwise use default
-        if calendar_id:
-            self.calendar_id = calendar_id
-        else:
-            # For service account, set to the shared calendar's ID
-            if use_service_account:
-                self.calendar_id = "71195bf48e50624b978a0604e023c829ed85276a42f3134f76ed0ba0081403e1@group.calendar.google.com"
-            else:
-                # For OAuth, 'primary' will be replaced by the user's primary calendar
-                self.calendar_id = "primary"
-        self.timezone = pytz.timezone('Asia/Kolkata')  # Use IST timezone
+        self.use_service_account = use_service_account
+        self.calendar_id = os.getenv('GOOGLE_CALENDAR_ID')
         
+        # Set timezone to Asia/Kolkata
+        self.timezone = pytz.timezone('Asia/Kolkata')
+        
+        # Authenticate on initialization
+        self.authenticate()
+    
     def authenticate(self) -> bool:
         """Authenticate with Google Calendar API."""
         try:
             if self.use_service_account:
-                return self._authenticate_service_account()
-            else:
-                return self._authenticate_oauth()
-        except Exception as e:
-            print(f"Error during authentication: {e}")
-            return False
-    
-    def _authenticate_service_account(self) -> bool:
-        """Authenticate using service account credentials."""
-        try:
-            # First try to get credentials from environment variable
-            import os
-            credentials_json = os.getenv('GOOGLE_CALENDAR_CREDENTIALS')
-            
-            if credentials_json:
-                # Use credentials from environment variable
-                import json
-                credentials_data = json.loads(credentials_json)
-                credentials = service_account.Credentials.from_service_account_info(
-                    credentials_data, scopes=SCOPES
-                )
-                print("✅ Service account authentication from environment variable successful")
-            elif os.path.exists(self.credentials_file):
-                # Fallback to credentials file
+                # Use service account authentication
                 credentials = service_account.Credentials.from_service_account_file(
-                    self.credentials_file, scopes=SCOPES
+                    'service-account.json',
+                    scopes=SCOPES
                 )
                 print("✅ Service account authentication from file successful")
-            elif os.path.exists('/etc/secrets/credentials.json'):
-                # Check Render secrets location
-                credentials = service_account.Credentials.from_service_account_file(
-                    '/etc/secrets/credentials.json', scopes=SCOPES
-                )
-                print("✅ Service account authentication from Render secrets successful")
             else:
-                print(f"❌ No credentials found - checked environment variable, {self.credentials_file}, and /etc/secrets/credentials.json")
-                return False
+                # Use OAuth2 authentication
+                creds = None
+                if os.path.exists('token.json'):
+                    creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+                
+                if not creds or not creds.valid:
+                    if creds and creds.expired and creds.refresh_token:
+                        creds.refresh(Request())
+                    else:
+                        flow = InstalledAppFlow.from_client_secrets_file(
+                            'credentials.json', SCOPES)
+                        creds = flow.run_local_server(port=0)
+                    
+                    with open('token.json', 'w') as token:
+                        token.write(creds.to_json())
+                
+                credentials = creds
             
-            # Build the service
             self.service = build('calendar', 'v3', credentials=credentials)
             return True
             
         except Exception as e:
-            print(f"Service account authentication failed: {e}")
+            print(f"❌ Authentication failed: {e}")
             return False
     
-    def _authenticate_oauth(self) -> bool:
-        """Authenticate using OAuth 2.0 flow."""
-        creds = None
-        
-        # The file token.json stores the user's access and refresh tokens.
-        if os.path.exists('token.json'):
-            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-            
-        # If there are no (valid) credentials available, let the user log in.
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                if not os.path.exists(self.credentials_file):
-                    raise FileNotFoundError(f"Credentials file {self.credentials_file} not found")
-                    
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    self.credentials_file, SCOPES)
-                creds = flow.run_local_server(port=0)
-                
-            # Save the credentials for the next run
-            with open('token.json', 'w') as token:
-                token.write(creds.to_json())
-                
-        try:
-            self.service = build('calendar', 'v3', credentials=creds)
-            
-            # Get the user's primary calendar ID
-            try:
-                calendar_list = self.service.calendarList().list().execute()
-                for calendar in calendar_list.get('items', []):
-                    if calendar.get('primary', False):
-                        self.calendar_id = calendar['id']
-                        print(f"✅ Using primary calendar: {self.calendar_id}")
-                        break
-            except Exception as e:
-                print(f"Warning: Could not get primary calendar, using default: {e}")
-                # Fall back to primary
-                self.calendar_id = "primary"
-            
-            return True
-        except Exception as e:
-            print(f"Error building calendar service: {e}")
-            return False
+    def _ensure_timezone(self, dt: datetime) -> datetime:
+        """Ensure datetime is timezone-aware with the correct timezone."""
+        if dt.tzinfo is None:
+            return self.timezone.localize(dt)
+        return dt.astimezone(self.timezone)
     
     def check_availability(self, start_date: datetime, end_date: datetime, 
                           duration_minutes: int = 60) -> List[Dict]:
@@ -159,10 +102,8 @@ class GoogleCalendarManager:
         
         try:
             # Ensure timezone-aware datetime objects
-            if start_date.tzinfo is None:
-                start_date = start_date.replace(tzinfo=self.timezone)
-            if end_date.tzinfo is None:
-                end_date = end_date.replace(tzinfo=self.timezone)
+            start_date = self._ensure_timezone(start_date)
+            end_date = self._ensure_timezone(end_date)
             
             # Get existing events in the time range
             events_result = self.service.events().list(
@@ -192,15 +133,8 @@ class GoogleCalendarManager:
         available_slots = []
         
         # Convert to timezone-aware datetime
-        if start_date.tzinfo is None:
-            start_date = start_date.replace(tzinfo=self.timezone)
-        else:
-            start_date = start_date.astimezone(self.timezone)
-            
-        if end_date.tzinfo is None:
-            end_date = end_date.replace(tzinfo=self.timezone)
-        else:
-            end_date = end_date.astimezone(self.timezone)
+        start_date = self._ensure_timezone(start_date)
+        end_date = self._ensure_timezone(end_date)
         
         # Business hours: 9 AM to 5 PM
         business_start = 9
@@ -230,19 +164,19 @@ class GoogleCalendarManager:
                             # Remove timezone info if present
                             if event_start_str.endswith('Z'):
                                 event_start_str = event_start_str[:-1]
-                            event_start = datetime.fromisoformat(event_start_str).replace(tzinfo=self.timezone)
+                            event_start = self._ensure_timezone(datetime.fromisoformat(event_start_str))
                         else:
                             # Date-only format
-                            event_start = datetime.fromisoformat(event_start_str).replace(tzinfo=self.timezone)
+                            event_start = self._ensure_timezone(datetime.fromisoformat(event_start_str))
                         
                         if 'T' in event_end_str:
                             # Remove timezone info if present
                             if event_end_str.endswith('Z'):
                                 event_end_str = event_end_str[:-1]
-                            event_end = datetime.fromisoformat(event_end_str).replace(tzinfo=self.timezone)
+                            event_end = self._ensure_timezone(datetime.fromisoformat(event_end_str))
                         else:
                             # Date-only format
-                            event_end = datetime.fromisoformat(event_end_str).replace(tzinfo=self.timezone)
+                            event_end = self._ensure_timezone(datetime.fromisoformat(event_end_str))
                         
                         # Check for overlap
                         if (current_time < event_end and slot_end > event_start):
@@ -290,18 +224,9 @@ class GoogleCalendarManager:
                 return {'success': False, 'error': 'Authentication failed'}
         
         try:
-            # Ensure datetime objects are timezone-aware and in the correct timezone
-            if start_time.tzinfo is None:
-                start_time = start_time.replace(tzinfo=self.timezone)
-            else:
-                # Convert to the calendar's timezone if different
-                start_time = start_time.astimezone(self.timezone)
-                
-            if end_time.tzinfo is None:
-                end_time = end_time.replace(tzinfo=self.timezone)
-            else:
-                # Convert to the calendar's timezone if different
-                end_time = end_time.astimezone(self.timezone)
+            # Ensure datetime objects are timezone-aware
+            start_time = self._ensure_timezone(start_time)
+            end_time = self._ensure_timezone(end_time)
             
             print(f"🔍 Attempting to book appointment:")
             print(f"   Title: {title}")

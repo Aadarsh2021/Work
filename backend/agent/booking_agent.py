@@ -1025,6 +1025,22 @@ def book_appointment_node(state: AgentState) -> AgentState:
             state.error_message = "No appointment details available for booking"
             return state.model_dump()
         
+        # Check if we've already booked this appointment
+        if state.booking_confirmed:
+            response_msg = (
+                "I've already booked this appointment for you! 😊\n\n"
+                "**Would you like to:**\n"
+                "• Book another appointment?\n"
+                "• Check your calendar?\n"
+                "• Modify this booking?\n\n"
+                "Just let me know how else I can help!"
+            )
+            state.messages.append({
+                "role": "assistant",
+                "content": response_msg
+            })
+            return state.model_dump()
+
         title = state.appointment_details.get('title', 'Appointment')
         start_time = state.appointment_details.get('start_time')
         end_time = state.appointment_details.get('end_time')
@@ -1092,7 +1108,8 @@ def book_appointment_node(state: AgentState) -> AgentState:
                             'end_time': end_dt.strftime('%I:%M %p'),
                             'duration': int((end_dt - start_dt).total_seconds() / 60),
                             'event_id': result['event_id'],
-                            'calendar_link': result.get('event_link', '')
+                            'calendar_link': result.get('event_link', ''),
+                            'time_of_day': 'morning' if start_dt.hour < 12 else 'afternoon' if start_dt.hour < 17 else 'evening'
                         }
                         
                         response_msg = booking_confirmation(booking_details)

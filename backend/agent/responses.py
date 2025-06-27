@@ -105,18 +105,14 @@ def booking_confirmation(booking_details: dict) -> str:
     duration = booking_details.get('duration', 60)
     event_id = booking_details.get('event_id', '')
     calendar_link = booking_details.get('calendar_link', '')
+    time_of_day = booking_details.get('time_of_day', '')
     
-    # Add some personality based on the time
-    try:
-        hour = int(start_time.split(':')[0])
-        if hour < 12:
-            time_mood = "🌅 Perfect for a productive morning!"
-        elif hour < 17:
-            time_mood = "☀️ Great afternoon slot!"
-        else:
-            time_mood = "🌆 Evening meeting scheduled!"
-    except:
-        time_mood = "✨ Excellent choice!"
+    # Add some personality based on the time of day
+    time_mood = {
+        'morning': "🌅 Perfect for a productive morning!",
+        'afternoon': "☀️ Great afternoon slot!",
+        'evening': "🌆 Perfect timing for a late-day meeting!"
+    }.get(time_of_day, "✨ Excellent choice!")
     
     response = (
         f"🎉 **Booking Confirmed!** 🎉\n\n"
