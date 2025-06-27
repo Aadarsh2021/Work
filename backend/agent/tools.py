@@ -5,8 +5,8 @@ Tools for the LangGraph booking agent to interact with Google Calendar.
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from langchain.tools import tool
-from backend.utils.calendar import GoogleCalendarManager
-from backend.utils.date_parser import parse_date_preference
+from utils.calendar import GoogleCalendarManager
+from utils.date_parser import parse_date_preference
 
 # Initialize calendar manager
 calendar_manager = GoogleCalendarManager()
