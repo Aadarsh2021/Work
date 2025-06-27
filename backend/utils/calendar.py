@@ -415,9 +415,9 @@ class GoogleCalendarManager:
         target_date = datetime.strptime(parsed['target_date'], '%Y-%m-%d')
         start_hour = parsed['start_hour']
         
-        # Handle "this week" availability requests
-        if parsed.get('is_availability_request') and parsed.get('availability_period') == 'week':
-            # For "this week" requests, check the next 7 days
+        # Handle availability requests for "this week" or "next week"
+        if parsed.get('is_availability_request') and ("week" in parsed.get('time_preference', '').lower() or parsed.get('availability_period') == 'week'):
+            # For week requests, check the next 7 days
             all_slots = []
             for i in range(7):
                 check_date = target_date + timedelta(days=i)

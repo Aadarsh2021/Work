@@ -111,10 +111,10 @@ def create_booking_agent():
     # Define the edges
     workflow.set_entry_point("greeting")
     
-    # Simplified routing with error handling
+    # Fixed routing logic - check if user message exists before going to understand_intent
     workflow.add_conditional_edges(
         "greeting",
-        lambda state: "handle_error" if state.get('error_message') else ("understand_intent" if len(state.get('messages', [])) >= 2 else "end"),
+        lambda state: "handle_error" if state.get('error_message') else ("understand_intent" if any(msg.get('role') == 'user' for msg in state.get('messages', [])) else "end"),
         {
             "understand_intent": "understand_intent",
             "handle_error": "handle_error",
@@ -195,13 +195,15 @@ def create_booking_agent():
 
 def greeting_node(state: AgentState) -> AgentState:
     """Handle initial greeting and introduction."""
-    # Use enhanced greeting response
-    greeting_message = general_greeting()
-    
-    state.messages.append({
-        "role": "assistant",
-        "content": greeting_message
-    })
+    # Only add greeting if there are no user messages yet
+    if not any(msg.get('role') == 'user' for msg in state.messages):
+        # Use enhanced greeting response
+        greeting_message = general_greeting()
+        
+        state.messages.append({
+            "role": "assistant",
+            "content": greeting_message
+        })
     
     return state.model_dump()
 

@@ -119,10 +119,10 @@ def parse_date_preference(user_input: str) -> Dict:
             start_hour = 17
         
         # Special handling for availability requests
-        if is_availability_request and "this week" in user_input_lower:
+        if is_availability_request and ("this week" in user_input_lower or "next week" in user_input_lower):
             return {
                 'target_date': target_date.strftime('%Y-%m-%d'),
-                'time_preference': 'this week (next 7 days)',
+                'time_preference': time_preference,
                 'start_hour': 9,
                 'duration': 60,
                 'is_availability_request': True,
