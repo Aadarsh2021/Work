@@ -25,7 +25,7 @@ from prometheus_client import CollectorRegistry, push_to_gateway
 import logging
 from logging.handlers import RotatingFileHandler
 
-from backend.agent.booking_agent import booking_agent, AgentState
+from agent.booking_agent import create_booking_agent, AgentState
 
 # Load environment variables
 load_dotenv()
@@ -275,6 +275,8 @@ async def chat(
         # Process with agent
         logger.info(f"Processing message for session {session_id}: {chat_request.message[:100]}...")
         
+        # Create the booking agent instance
+        booking_agent = create_booking_agent()
         result = booking_agent.invoke(state.model_dump())
         state = AgentState(**result)
         
