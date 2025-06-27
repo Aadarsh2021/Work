@@ -209,14 +209,23 @@ def extract_entities(text: str) -> Dict[str, Any]:
     """Extract entities from natural language text using LLM."""
     try:
         entity_prompt = f"""Extract from: "{text}"
-Return JSON: {{"date": "YYYY-MM-DD", "time": "HH:MM", "duration": minutes, "title": "purpose", "urgency": "High/Medium/Low", "participants": number}}"""
+Return ONLY a valid JSON object in this exact format:
+{{"date": "YYYY-MM-DD or null", "time": "HH:MM or null", "duration": "minutes or null", "title": "purpose or null", "urgency": "High/Medium/Low or null", "participants": "number or null"}}
+
+If no specific information is found, use "null" for that field."""
         
         response_content = get_cached_llm_response(entity_prompt, f"entities_{text[:50]}")
-        if response_content:
-            entities = json.loads(response_content)
-            logger.info(f"Extracted entities: {entities}")
-            return entities
-        return {}
+        if response_content and response_content.strip():
+            try:
+                entities = json.loads(response_content)
+                logger.info(f"Extracted entities: {entities}")
+                return entities
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON decode error in entity extraction: {e}")
+                return {}
+        else:
+            logger.warning(f"Empty response from LLM for entity extraction: {text}")
+            return {}
     except Exception as e:
         logger.error(f"Error extracting entities: {e}")
         return {}
@@ -1030,8 +1039,18 @@ def book_appointment_node(state: AgentState) -> AgentState:
                 from backend.utils.calendar import GoogleCalendarManager
                 calendar_manager = GoogleCalendarManager(use_service_account=True)
                 if calendar_manager.authenticate():
-                    start_dt = datetime.fromisoformat(start_time)
-                    end_dt = datetime.fromisoformat(end_time)
+                    # Parse datetime strings safely
+                    try:
+                        start_dt = datetime.fromisoformat(start_time)
+                        end_dt = datetime.fromisoformat(end_time)
+                    except ValueError as e:
+                        logger.error(f"Invalid datetime format: {e}")
+                        response_msg = error_response("general")
+                        state.messages.append({
+                            "role": "assistant",
+                            "content": response_msg
+                        })
+                        return state.model_dump()
                     
                     # Check if slot is still available before booking
                     if attempt > 0:
@@ -1039,10 +1058,17 @@ def book_appointment_node(state: AgentState) -> AgentState:
                         available_slots = calendar_manager.get_next_available_slots(start_dt.date(), 1)
                         slot_still_available = False
                         for slot in available_slots:
-                            slot_start = datetime.fromisoformat(slot['start'].replace('Z', ''))
-                            if abs((slot_start - start_dt).total_seconds()) < 300:  # Within 5 minutes
-                                slot_still_available = True
-                                break
+                            slot_start_str = slot['start']
+                            # Handle timezone suffix properly
+                            if slot_start_str.endswith('Z'):
+                                slot_start_str = slot_start_str[:-1]  # Remove 'Z' suffix
+                            try:
+                                slot_start = datetime.fromisoformat(slot_start_str)
+                                if abs((slot_start - start_dt).total_seconds()) < 300:  # Within 5 minutes
+                                    slot_still_available = True
+                                    break
+                            except ValueError:
+                                continue  # Skip invalid datetime formats
                         
                         if not slot_still_available:
                             response_msg = no_availability()
