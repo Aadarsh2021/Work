@@ -192,8 +192,15 @@ class GoogleCalendarManager:
         available_slots = []
         
         # Convert to timezone-aware datetime
-        start_date = start_date.replace(tzinfo=self.timezone)
-        end_date = end_date.replace(tzinfo=self.timezone)
+        if start_date.tzinfo is None:
+            start_date = start_date.replace(tzinfo=self.timezone)
+        else:
+            start_date = start_date.astimezone(self.timezone)
+            
+        if end_date.tzinfo is None:
+            end_date = end_date.replace(tzinfo=self.timezone)
+        else:
+            end_date = end_date.astimezone(self.timezone)
         
         # Business hours: 9 AM to 5 PM
         business_start = 9
@@ -243,11 +250,16 @@ class GoogleCalendarManager:
                         continue
                 
                 if is_available and slot_end <= end_date:
-                    available_slots.append({
+                    # Create slot with both ISO format and human-readable format
+                    slot = {
                         'start': current_time.isoformat(),
                         'end': slot_end.isoformat(),
-                        'duration_minutes': duration_minutes
-                    })
+                        'duration_minutes': duration_minutes,
+                        'start_time_display': current_time.strftime('%I:%M %p'),
+                        'end_time_display': slot_end.strftime('%I:%M %p'),
+                        'date_display': current_time.strftime('%A, %B %d, %Y')
+                    }
+                    available_slots.append(slot)
             
             # Move to next 30-minute slot
             current_time += timedelta(minutes=30)
@@ -273,17 +285,25 @@ class GoogleCalendarManager:
                 return {'success': False, 'error': 'Authentication failed'}
         
         try:
-            # Ensure datetime objects are timezone-aware
+            # Ensure datetime objects are timezone-aware and in the correct timezone
             if start_time.tzinfo is None:
                 start_time = start_time.replace(tzinfo=self.timezone)
+            else:
+                # Convert to the calendar's timezone if different
+                start_time = start_time.astimezone(self.timezone)
+                
             if end_time.tzinfo is None:
                 end_time = end_time.replace(tzinfo=self.timezone)
+            else:
+                # Convert to the calendar's timezone if different
+                end_time = end_time.astimezone(self.timezone)
             
             print(f"🔍 Attempting to book appointment:")
             print(f"   Title: {title}")
-            print(f"   Start: {start_time.isoformat()}")
-            print(f"   End: {end_time.isoformat()}")
+            print(f"   Start: {start_time.isoformat()} ({start_time.strftime('%I:%M %p')})")
+            print(f"   End: {end_time.isoformat()} ({end_time.strftime('%I:%M %p')})")
             print(f"   Calendar ID: {self.calendar_id}")
+            print(f"   Timezone: {self.timezone}")
             
             # Check if the time slot is still available
             availability = self.check_availability(
@@ -295,17 +315,17 @@ class GoogleCalendarManager:
             if not availability:
                 return {'success': False, 'error': 'Time slot no longer available'}
             
-            # Create the event with IST timezone
+            # Create the event with explicit timezone handling
             event = {
                 'summary': title,
                 'description': description,
                 'start': {
                     'dateTime': start_time.isoformat(),
-                    'timeZone': 'Asia/Kolkata',
+                    'timeZone': str(self.timezone),
                 },
                 'end': {
                     'dateTime': end_time.isoformat(),
-                    'timeZone': 'Asia/Kolkata',
+                    'timeZone': str(self.timezone),
                 },
                 'reminders': {
                     'useDefault': False,
@@ -331,12 +351,19 @@ class GoogleCalendarManager:
             print(f"   Event ID: {event_result['id']}")
             print(f"   Event Link: {event_result.get('htmlLink', 'No link')}")
             
+            # Parse the returned times to ensure they match what we sent
+            returned_start = event_result['start']['dateTime']
+            returned_end = event_result['end']['dateTime']
+            
+            print(f"   Returned Start: {returned_start}")
+            print(f"   Returned End: {returned_end}")
+            
             return {
                 'success': True,
                 'event_id': event_result['id'],
                 'event_link': event_result.get('htmlLink', ''),
-                'start_time': event_result['start']['dateTime'],
-                'end_time': event_result['end']['dateTime'],
+                'start_time': returned_start,
+                'end_time': returned_end,
                 'calendar_id': self.calendar_id
             }
             

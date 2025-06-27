@@ -40,24 +40,30 @@ def slot_suggestion(slots: list, date_str: str = "") -> str:
     # Format the slots nicely
     slot_options = []
     for i, slot in enumerate(slots[:5], 1):  # Limit to 5 options
-        start_time = slot.get('start', '')
-        end_time = slot.get('end', '')
-        
-        # Parse and format the time
-        try:
-            if 'T' in start_time:
-                start_dt = datetime.fromisoformat(start_time.replace('Z', ''))
-                end_dt = datetime.fromisoformat(end_time.replace('Z', ''))
-                
-                # Format as "2:30 PM - 3:30 PM"
-                start_formatted = start_dt.strftime('%I:%M %p')
-                end_formatted = end_dt.strftime('%I:%M %p')
-                
-                slot_options.append(f"**{i}.** {start_formatted} - {end_formatted}")
-            else:
+        # Use the improved display format if available
+        if 'start_time_display' in slot and 'end_time_display' in slot:
+            start_formatted = slot['start_time_display']
+            end_formatted = slot['end_time_display']
+            slot_options.append(f"**{i}.** {start_formatted} - {end_formatted}")
+        else:
+            # Fallback to parsing ISO format
+            start_time = slot.get('start', '')
+            end_time = slot.get('end', '')
+            
+            try:
+                if 'T' in start_time:
+                    start_dt = datetime.fromisoformat(start_time.replace('Z', ''))
+                    end_dt = datetime.fromisoformat(end_time.replace('Z', ''))
+                    
+                    # Format as "2:30 PM - 3:30 PM"
+                    start_formatted = start_dt.strftime('%I:%M %p')
+                    end_formatted = end_dt.strftime('%I:%M %p')
+                    
+                    slot_options.append(f"**{i}.** {start_formatted} - {end_formatted}")
+                else:
+                    slot_options.append(f"**{i}.** {start_time} - {end_time}")
+            except:
                 slot_options.append(f"**{i}.** {start_time} - {end_time}")
-        except:
-            slot_options.append(f"**{i}.** {start_time} - {end_time}")
     
     date_context = f" for **{date_str}**" if date_str else ""
     
@@ -261,21 +267,27 @@ def processing_response() -> str:
 
 def slot_selection_confirmation(slot_number: int, slot_details: dict) -> str:
     """Generate a confirmation when user selects a slot."""
-    start_time = slot_details.get('start', '')
-    end_time = slot_details.get('end', '')
-    
-    # Format the time nicely
-    try:
-        if 'T' in start_time:
-            start_dt = datetime.fromisoformat(start_time.replace('Z', ''))
-            end_dt = datetime.fromisoformat(end_time.replace('Z', ''))
-            start_formatted = start_dt.strftime('%I:%M %p')
-            end_formatted = end_dt.strftime('%I:%M %p')
-            time_str = f"{start_formatted} - {end_formatted}"
-        else:
+    # Use the improved display format if available
+    if 'start_time_display' in slot_details and 'end_time_display' in slot_details:
+        start_formatted = slot_details['start_time_display']
+        end_formatted = slot_details['end_time_display']
+        time_str = f"{start_formatted} - {end_formatted}"
+    else:
+        # Fallback to parsing ISO format
+        start_time = slot_details.get('start', '')
+        end_time = slot_details.get('end', '')
+        
+        try:
+            if 'T' in start_time:
+                start_dt = datetime.fromisoformat(start_time.replace('Z', ''))
+                end_dt = datetime.fromisoformat(end_time.replace('Z', ''))
+                start_formatted = start_dt.strftime('%I:%M %p')
+                end_formatted = end_dt.strftime('%I:%M %p')
+                time_str = f"{start_formatted} - {end_formatted}"
+            else:
+                time_str = f"{start_time} - {end_time}"
+        except:
             time_str = f"{start_time} - {end_time}"
-    except:
-        time_str = f"{start_time} - {end_time}"
     
     return (
         f"Excellent choice! 🎯\n\n"
