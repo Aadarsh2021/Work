@@ -20,23 +20,30 @@ from backend.utils.date_parser import parse_date_preference
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 
 def to_rfc3339(dt):
-    # Remove microseconds and ensure correct UTC/Z format
-    s = dt.replace(microsecond=0).isoformat()
-    if s.endswith('+00:00'):
-        s = s[:-6] + 'Z'
-    return s
+    """Convert datetime to RFC3339 format."""
+    if dt.tzinfo is None:
+        dt = pytz.UTC.localize(dt)
+    else:
+        dt = dt.astimezone(pytz.UTC)
+    return dt.isoformat().replace('+00:00', 'Z')
 
 class GoogleCalendarManager:
     """Google Calendar Manager for handling appointments."""
     
-    def __init__(self, use_service_account: bool = False):
-        """Initialize the calendar manager."""
+    def __init__(self, use_service_account: bool = False, timezone: str = None):
+        """Initialize the calendar manager.
+        
+        Args:
+            use_service_account: Whether to use service account auth
+            timezone: Optional timezone string (e.g. 'America/New_York'). If None, uses UTC
+        """
         self.service = None
         self.use_service_account = use_service_account
         self.calendar_id = os.getenv('GOOGLE_CALENDAR_ID')
         
-        # Set timezone to Asia/Kolkata
-        self.timezone = pytz.timezone('Asia/Kolkata')
+        # Use provided timezone or default to UTC
+        self.timezone = pytz.timezone(timezone) if timezone else pytz.UTC
+        print(f"📅 Calendar Manager initialized with timezone: {self.timezone}")
         
         # Authenticate on initialization
         self.authenticate()
@@ -83,6 +90,11 @@ class GoogleCalendarManager:
             return self.timezone.localize(dt)
         return dt.astimezone(self.timezone)
     
+    def _format_time_for_display(self, dt: datetime) -> str:
+        """Format datetime for display with timezone information."""
+        dt = self._ensure_timezone(dt)
+        return f"{dt.strftime('%I:%M %p')} {dt.tzname()}"
+    
     def check_availability(self, start_date: datetime, end_date: datetime, 
                           duration_minutes: int = 60) -> List[Dict]:
         """
@@ -105,11 +117,15 @@ class GoogleCalendarManager:
             start_date = self._ensure_timezone(start_date)
             end_date = self._ensure_timezone(end_date)
             
+            # Convert to UTC for API request
+            start_utc = start_date.astimezone(pytz.UTC)
+            end_utc = end_date.astimezone(pytz.UTC)
+            
             # Get existing events in the time range
             events_result = self.service.events().list(
                 calendarId=self.calendar_id,
-                timeMin=to_rfc3339(start_date),
-                timeMax=to_rfc3339(end_date),
+                timeMin=to_rfc3339(start_utc),
+                timeMax=to_rfc3339(end_utc),
                 singleEvents=True,
                 orderBy='startTime'
             ).execute()
@@ -136,12 +152,12 @@ class GoogleCalendarManager:
         start_date = self._ensure_timezone(start_date)
         end_date = self._ensure_timezone(end_date)
         
-        # Business hours: 9 AM to 5 PM
+        # Business hours: 9 AM to 5 PM in local timezone
         business_start = 9
         business_end = 17
         
-        print(f"   📅 Generating slots from {start_date.strftime('%Y-%m-%d %H:%M')} to {end_date.strftime('%Y-%m-%d %H:%M')}")
-        print(f"   📅 Business hours: {business_start}:00 to {business_end}:00")
+        print(f"   📅 Generating slots from {start_date.strftime('%Y-%m-%d %H:%M %Z')} to {end_date.strftime('%Y-%m-%d %H:%M %Z')}")
+        print(f"   📅 Business hours: {business_start}:00 to {business_end}:00 {self.timezone}")
         print(f"   📅 Found {len(events)} existing events")
         
         current_time = start_date
@@ -155,47 +171,28 @@ class GoogleCalendarManager:
                 is_available = True
                 for event in events:
                     try:
-                        # Handle different datetime formats from Google Calendar
-                        event_start_str = event['start'].get('dateTime', event['start'].get('date'))
-                        event_end_str = event['end'].get('dateTime', event['end'].get('date'))
-                        
-                        # Parse datetime strings safely
-                        if 'T' in event_start_str:
-                            # Remove timezone info if present
-                            if event_start_str.endswith('Z'):
-                                event_start_str = event_start_str[:-1]
-                            event_start = self._ensure_timezone(datetime.fromisoformat(event_start_str))
-                        else:
-                            # Date-only format
-                            event_start = self._ensure_timezone(datetime.fromisoformat(event_start_str))
-                        
-                        if 'T' in event_end_str:
-                            # Remove timezone info if present
-                            if event_end_str.endswith('Z'):
-                                event_end_str = event_end_str[:-1]
-                            event_end = self._ensure_timezone(datetime.fromisoformat(event_end_str))
-                        else:
-                            # Date-only format
-                            event_end = self._ensure_timezone(datetime.fromisoformat(event_end_str))
+                        # Parse event times and convert to calendar's timezone
+                        event_start = self._parse_event_datetime(event['start'])
+                        event_end = self._parse_event_datetime(event['end'])
                         
                         # Check for overlap
                         if (current_time < event_end and slot_end > event_start):
                             is_available = False
                             break
                     except Exception as e:
-                        # Skip problematic events
                         print(f"Warning: Could not parse event datetime: {e}")
                         continue
                 
                 if is_available and slot_end <= end_date:
-                    # Create slot with both ISO format and human-readable format
+                    # Create slot with timezone-aware times
                     slot = {
                         'start': current_time.isoformat(),
                         'end': slot_end.isoformat(),
                         'duration_minutes': duration_minutes,
-                        'start_time_display': current_time.strftime('%I:%M %p'),
-                        'end_time_display': slot_end.strftime('%I:%M %p'),
-                        'date_display': current_time.strftime('%A, %B %d, %Y')
+                        'start_time_display': self._format_time_for_display(current_time),
+                        'end_time_display': self._format_time_for_display(slot_end),
+                        'date_display': current_time.strftime('%A, %B %d, %Y'),
+                        'timezone': str(self.timezone)
                     }
                     available_slots.append(slot)
             
@@ -204,6 +201,21 @@ class GoogleCalendarManager:
         
         print(f"   📅 Generated {len(available_slots)} available slots")
         return available_slots
+    
+    def _parse_event_datetime(self, event_time: Dict) -> datetime:
+        """Parse event datetime from Google Calendar API response."""
+        dt_str = event_time.get('dateTime', event_time.get('date'))
+        
+        if 'T' in dt_str:  # Full datetime
+            if dt_str.endswith('Z'):
+                dt = datetime.fromisoformat(dt_str[:-1]).replace(tzinfo=pytz.UTC)
+            else:
+                dt = datetime.fromisoformat(dt_str)
+        else:  # Date only
+            dt = datetime.fromisoformat(dt_str)
+            dt = pytz.UTC.localize(dt)
+        
+        return dt.astimezone(self.timezone)
     
     def book_appointment(self, title: str, start_time: datetime, 
                         end_time: datetime, description: str = "") -> Dict:
@@ -230,8 +242,8 @@ class GoogleCalendarManager:
             
             print(f"🔍 Attempting to book appointment:")
             print(f"   Title: {title}")
-            print(f"   Start: {start_time.isoformat()} ({start_time.strftime('%I:%M %p')})")
-            print(f"   End: {end_time.isoformat()} ({end_time.strftime('%I:%M %p')})")
+            print(f"   Start: {self._format_time_for_display(start_time)}")
+            print(f"   End: {self._format_time_for_display(end_time)}")
             print(f"   Calendar ID: {self.calendar_id}")
             print(f"   Timezone: {self.timezone}")
             
@@ -250,60 +262,32 @@ class GoogleCalendarManager:
                 'summary': title,
                 'description': description,
                 'start': {
-                    'dateTime': start_time.isoformat(),
-                    'timeZone': str(self.timezone),
+                    'dateTime': to_rfc3339(start_time),
+                    'timeZone': str(self.timezone)
                 },
                 'end': {
-                    'dateTime': end_time.isoformat(),
-                    'timeZone': str(self.timezone),
-                },
-                'reminders': {
-                    'useDefault': False,
-                    'overrides': [
-                        {'method': 'email', 'minutes': 24 * 60},
-                        {'method': 'popup', 'minutes': 30},
-                    ],
-                },
-                'transparency': 'opaque',  # Show as busy
-                'visibility': 'default',   # Default visibility
+                    'dateTime': to_rfc3339(end_time),
+                    'timeZone': str(self.timezone)
+                }
             }
             
-            print(f"📅 Creating event with data: {event}")
-            
-            # Try to insert the event
-            event_result = self.service.events().insert(
-                calendarId=self.calendar_id, 
-                body=event,
-                sendUpdates='all'  # Send notifications to attendees
+            # Insert the event
+            event = self.service.events().insert(
+                calendarId=self.calendar_id,
+                body=event
             ).execute()
-            
-            print(f"✅ Event created successfully!")
-            print(f"   Event ID: {event_result['id']}")
-            print(f"   Event Link: {event_result.get('htmlLink', 'No link')}")
-            
-            # Parse the returned times to ensure they match what we sent
-            returned_start = event_result['start']['dateTime']
-            returned_end = event_result['end']['dateTime']
-            
-            print(f"   Returned Start: {returned_start}")
-            print(f"   Returned End: {returned_end}")
             
             return {
                 'success': True,
-                'event_id': event_result['id'],
-                'event_link': event_result.get('htmlLink', ''),
-                'start_time': returned_start,
-                'end_time': returned_end,
-                'calendar_id': self.calendar_id
+                'event_id': event['id'],
+                'start_time': self._format_time_for_display(start_time),
+                'end_time': self._format_time_for_display(end_time),
+                'timezone': str(self.timezone)
             }
             
         except HttpError as error:
-            error_details = f"HTTP Error {error.resp.status}: {error.content.decode()}"
-            print(f"❌ Calendar API Error: {error_details}")
-            return {'success': False, 'error': error_details}
-        except Exception as e:
-            print(f"❌ Unexpected error booking appointment: {e}")
-            return {'success': False, 'error': str(e)}
+            print(f"Error booking appointment: {error}")
+            return {'success': False, 'error': str(error)}
     
     def get_next_available_slots(self, date: datetime, count: int = 5) -> List[Dict]:
         """
