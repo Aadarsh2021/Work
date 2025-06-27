@@ -451,11 +451,42 @@ class GoogleCalendarManager:
             all_slots.sort(key=lambda x: x['start'])
             return all_slots[:10]
         
-        # Set window to ±2 hours around requested time for specific times (wider window)
+        # For specific time requests, try to match exactly first
         if "specific time" in parsed['time_preference']:
-            # Start searching 2 hours before requested time
+            # First try exact time match
+            exact_start = target_date.replace(hour=start_hour, minute=0, second=0, microsecond=0)
+            exact_end = exact_start + timedelta(minutes=60)  # Default 1-hour slot
+            
+            # Ensure timezone-aware datetime objects
+            if exact_start.tzinfo is None:
+                exact_start = exact_start.replace(tzinfo=self.timezone)
+            if exact_end.tzinfo is None:
+                exact_end = exact_end.replace(tzinfo=self.timezone)
+            
+            # Check if exact time is available
+            exact_slots = self.check_availability(exact_start, exact_end)
+            if exact_slots:
+                return exact_slots
+            
+            # If exact time not available, look in a narrower window first (±1 hour)
+            narrow_start = target_date.replace(hour=max(9, start_hour - 1), minute=0, second=0, microsecond=0)
+            narrow_end = target_date.replace(hour=min(17, start_hour + 1), minute=59, second=59, microsecond=0)
+            
+            # Ensure timezone-aware datetime objects
+            if narrow_start.tzinfo is None:
+                narrow_start = narrow_start.replace(tzinfo=self.timezone)
+            if narrow_end.tzinfo is None:
+                narrow_end = narrow_end.replace(tzinfo=self.timezone)
+            
+            narrow_slots = self.check_availability(narrow_start, narrow_end)
+            if narrow_slots:
+                # Sort by proximity to requested time
+                target_time = target_date.replace(hour=start_hour, minute=0)
+                narrow_slots.sort(key=lambda x: abs(datetime.fromisoformat(x['start']).replace(tzinfo=None) - target_time))
+                return narrow_slots
+            
+            # If still no slots, try wider window (±2 hours)
             start_date = target_date.replace(hour=max(9, start_hour - 2), minute=0, second=0, microsecond=0)
-            # End searching 2 hours after requested time
             end_date = target_date.replace(hour=min(17, start_hour + 2), minute=59, second=59, microsecond=0)
         else:
             # For general preferences (morning, afternoon, etc.), use wider windows
