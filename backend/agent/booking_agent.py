@@ -124,9 +124,10 @@ def create_booking_agent():
     
     workflow.add_conditional_edges(
         "understand_intent",
-        lambda state: "handle_error" if state.get('error_message') else ("end" if state.get('simple_greeting', False) else "collect_details"),
+        lambda state: "handle_error" if state.get('error_message') else ("end" if state.get('simple_greeting', False) else ("suggest_slots" if state.get('user_intent') == "check_availability" else "collect_details")),
         {
             "collect_details": "collect_details",
+            "suggest_slots": "suggest_slots",
             "handle_error": "handle_error",
             "end": END
         }
@@ -358,14 +359,11 @@ User Message: "{last_user_message}"
                                 f"Let me check my availability and find the best slot for you! 🔍"
                             )
                     elif state.user_intent == "check_availability":
+                        # For availability requests, don't set simple_greeting=True
+                        # Instead, let the workflow continue to suggest_slots_node
                         response_msg = (
-                            "I can definitely check my availability for you! 📋\n\n"
-                            "**What date or time period are you interested in?** For example:\n"
-                            "• 'tomorrow'\n"
-                            "• 'this Friday'\n"
-                            "• 'next week'\n"
-                            "• 'between 2-4 PM today'\n\n"
-                            "Just let me know when you'd like to check!"
+                            "I'll check my availability for you right now! 🔍\n\n"
+                            "Let me look at my calendar and find the best time slots for you."
                         )
                     elif state.user_intent == "modify":
                         response_msg = (
@@ -376,6 +374,7 @@ User Message: "{last_user_message}"
                             "• Adjust the duration\n\n"
                             "What would you like to modify?"
                         )
+                        state.simple_greeting = True
                     elif state.user_intent == "cancel":
                         response_msg = (
                             "I can help you cancel your appointment! ❌\n\n"
@@ -384,6 +383,7 @@ User Message: "{last_user_message}"
                             "• Or the meeting title\n\n"
                             "I'll help you cancel it right away."
                         )
+                        state.simple_greeting = True
                     else:
                         # General inquiry - provide helpful guidance
                         response_msg = (
@@ -400,6 +400,7 @@ User Message: "{last_user_message}"
                             "• \"What's the best slot for a 1-hour meeting?\"\n\n"
                             "**Just tell me what you need, and I'll guide you through it!** 😊"
                         )
+                        state.simple_greeting = True
                     
                     state.messages.append({
                         "role": "assistant",
