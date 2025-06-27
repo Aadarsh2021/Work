@@ -206,6 +206,10 @@ class GoogleCalendarManager:
         business_start = 9
         business_end = 17
         
+        print(f"   📅 Generating slots from {start_date.strftime('%Y-%m-%d %H:%M')} to {end_date.strftime('%Y-%m-%d %H:%M')}")
+        print(f"   📅 Business hours: {business_start}:00 to {business_end}:00")
+        print(f"   📅 Found {len(events)} existing events")
+        
         current_time = start_date
         
         while current_time < end_date:
@@ -264,6 +268,7 @@ class GoogleCalendarManager:
             # Move to next 30-minute slot
             current_time += timedelta(minutes=30)
         
+        print(f"   📅 Generated {len(available_slots)} available slots")
         return available_slots
     
     def book_appointment(self, title: str, start_time: datetime, 
@@ -446,12 +451,12 @@ class GoogleCalendarManager:
             all_slots.sort(key=lambda x: x['start'])
             return all_slots[:10]
         
-        # Set window to ±1 hour around requested time for specific times
+        # Set window to ±2 hours around requested time for specific times (wider window)
         if "specific time" in parsed['time_preference']:
-            # Start searching 1 hour before requested time
-            start_date = target_date.replace(hour=max(9, start_hour - 1), minute=0, second=0, microsecond=0)
-            # End searching 1 hour after requested time
-            end_date = target_date.replace(hour=min(17, start_hour + 1), minute=59, second=59, microsecond=0)
+            # Start searching 2 hours before requested time
+            start_date = target_date.replace(hour=max(9, start_hour - 2), minute=0, second=0, microsecond=0)
+            # End searching 2 hours after requested time
+            end_date = target_date.replace(hour=min(17, start_hour + 2), minute=59, second=59, microsecond=0)
         else:
             # For general preferences (morning, afternoon, etc.), use wider windows
             if "morning" in parsed['time_preference']:
@@ -473,8 +478,16 @@ class GoogleCalendarManager:
         if end_date.tzinfo is None:
             end_date = end_date.replace(tzinfo=self.timezone)
         
+        # Add debugging information
+        print(f"🔍 Checking availability for '{user_preference}':")
+        print(f"   Target date: {target_date}")
+        print(f"   Start hour: {start_hour}")
+        print(f"   Time window: {start_date.strftime('%Y-%m-%d %H:%M')} to {end_date.strftime('%Y-%m-%d %H:%M')}")
+        
         # Get available slots within the time window
         available_slots = self.check_availability(start_date, end_date)
+        
+        print(f"   Found {len(available_slots)} available slots")
         
         # For specific times, sort by proximity to requested time
         if "specific time" in parsed['time_preference']:
