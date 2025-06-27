@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 import logging
 from functools import lru_cache
 
-from agent.tools import (
+from backend.agent.tools import (
     check_calendar_availability,
     suggest_time_slots,
     book_appointment,
@@ -26,7 +26,7 @@ from agent.tools import (
 )
 
 # Import enhanced response templates
-from agent.responses import (
+from backend.agent.responses import (
     greeting_response,
     general_greeting,
     slot_suggestion,
@@ -575,7 +575,7 @@ def check_availability_node(state: AgentState) -> AgentState:
         
         # Check availability for the target date using the calendar manager directly
         try:
-            from utils.calendar import GoogleCalendarManager
+            from backend.utils.calendar import GoogleCalendarManager
             calendar_manager = GoogleCalendarManager(use_service_account=True)
             if calendar_manager.authenticate():
                 # Parse date without timezone for local date
@@ -733,7 +733,7 @@ def suggest_slots_node(state: AgentState) -> AgentState:
         
         # Suggest time slots based on user preference using calendar manager directly
         try:
-            from utils.calendar import GoogleCalendarManager
+            from backend.utils.calendar import GoogleCalendarManager
             calendar_manager = GoogleCalendarManager(use_service_account=True)
             if calendar_manager.authenticate():
                 suggested_slots = calendar_manager.suggest_time_slots(last_user_message)
@@ -879,7 +879,7 @@ def book_appointment_node(state: AgentState) -> AgentState:
         max_booking_attempts = 2
         for attempt in range(max_booking_attempts + 1):
             try:
-                from utils.calendar import GoogleCalendarManager
+                from backend.utils.calendar import GoogleCalendarManager
                 calendar_manager = GoogleCalendarManager(use_service_account=True)
                 if calendar_manager.authenticate():
                     start_dt = datetime.fromisoformat(start_time)
