@@ -403,7 +403,7 @@ class GoogleCalendarManager:
         Suggest time slots based on user preference.
         
         Args:
-            user_preference: Natural language preference (e.g., "tomorrow afternoon", "2 PM", "14:00")
+            user_preference: Natural language preference (e.g., "tomorrow afternoon", "2 PM", "this week")
             
         Returns:
             List of suggested time slots
@@ -414,6 +414,37 @@ class GoogleCalendarManager:
         # Get target date and start hour from parsed preference
         target_date = datetime.strptime(parsed['target_date'], '%Y-%m-%d')
         start_hour = parsed['start_hour']
+        
+        # Handle "this week" availability requests
+        if parsed.get('is_availability_request') and parsed.get('availability_period') == 'week':
+            # For "this week" requests, check the next 7 days
+            all_slots = []
+            for i in range(7):
+                check_date = target_date + timedelta(days=i)
+                
+                # Set business hours for each day
+                start_date = check_date.replace(hour=9, minute=0, second=0, microsecond=0)
+                end_date = check_date.replace(hour=17, minute=0, second=0, microsecond=0)
+                
+                # Ensure timezone-aware datetime objects
+                if start_date.tzinfo is None:
+                    start_date = start_date.replace(tzinfo=self.timezone)
+                if end_date.tzinfo is None:
+                    end_date = end_date.replace(tzinfo=self.timezone)
+                
+                # Get available slots for this day
+                day_slots = self.check_availability(start_date, end_date)
+                
+                # Add day information to slots
+                for slot in day_slots:
+                    slot['day_name'] = check_date.strftime('%A')
+                    slot['day_date'] = check_date.strftime('%B %d')
+                
+                all_slots.extend(day_slots)
+            
+            # Sort by date and time, limit to top 10 slots
+            all_slots.sort(key=lambda x: x['start'])
+            return all_slots[:10]
         
         # Set window to ±1 hour around requested time for specific times
         if "specific time" in parsed['time_preference']:

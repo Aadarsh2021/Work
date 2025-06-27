@@ -12,7 +12,7 @@ def parse_date_preference(user_input: str) -> Dict:
     Parse user's natural language date preference and convert to structured format.
     
     Args:
-        user_input: Natural language input (e.g., "tomorrow afternoon", "next Friday", "next day")
+        user_input: Natural language input (e.g., "tomorrow afternoon", "next Friday", "this week")
     
     Returns:
         Dictionary with structured date information
@@ -23,11 +23,22 @@ def parse_date_preference(user_input: str) -> Dict:
         today = datetime.now(ist_tz)
         user_input_lower = user_input.lower()
         
+        # Check for availability requests first
+        availability_keywords = ['availability', 'available', 'free', 'when', 'time', 'slot', 'schedule']
+        is_availability_request = any(keyword in user_input_lower for keyword in availability_keywords)
+        
         # Parse date
-        if "tomorrow" in user_input_lower or "next day" in user_input_lower:
-            target_date = today + timedelta(days=1)
+        if "this week" in user_input_lower:
+            # For "this week", start from today and look ahead 7 days
+            target_date = today
+            time_preference = "this week (next 7 days)"
+            start_hour = 9
         elif "next week" in user_input_lower:
             target_date = today + timedelta(days=7)
+            time_preference = "next week"
+            start_hour = 9
+        elif "tomorrow" in user_input_lower or "next day" in user_input_lower:
+            target_date = today + timedelta(days=1)
         elif "next monday" in user_input_lower:
             days_until_monday = (0 - today.weekday()) % 7
             if days_until_monday == 0:
@@ -68,8 +79,9 @@ def parse_date_preference(user_input: str) -> Dict:
             target_date = today + timedelta(days=1)
         
         # Initialize time preference and start hour
-        time_preference = "business hours (9 AM - 5 PM)"
-        start_hour = 10
+        if "this week" not in user_input_lower:
+            time_preference = "business hours (9 AM - 5 PM)"
+            start_hour = 10
         
         # Parse specific time first (e.g., "2 PM", "14:00")
         time_12h = re.search(r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)', user_input_lower)
@@ -106,11 +118,23 @@ def parse_date_preference(user_input: str) -> Dict:
             time_preference = "evening (5 PM - 7 PM)"
             start_hour = 17
         
+        # Special handling for availability requests
+        if is_availability_request and "this week" in user_input_lower:
+            return {
+                'target_date': target_date.strftime('%Y-%m-%d'),
+                'time_preference': 'this week (next 7 days)',
+                'start_hour': 9,
+                'duration': 60,
+                'is_availability_request': True,
+                'availability_period': 'week'
+            }
+        
         return {
             'target_date': target_date.strftime('%Y-%m-%d'),
             'time_preference': time_preference,
             'start_hour': start_hour,
-            'duration': 60  # Default 1 hour
+            'duration': 60,  # Default 1 hour
+            'is_availability_request': is_availability_request
         }
         
     except Exception as e:
@@ -118,5 +142,6 @@ def parse_date_preference(user_input: str) -> Dict:
             'target_date': (today + timedelta(days=1)).strftime('%Y-%m-%d'),
             'time_preference': 'business hours (9 AM - 5 PM)',
             'start_hour': 10,
-            'duration': 60
+            'duration': 60,
+            'is_availability_request': False
         } 

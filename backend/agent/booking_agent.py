@@ -345,12 +345,15 @@ Return ONLY a valid JSON object in this exact format:
 }}
 
 Rules:
-- "schedule": User wants to book/create an appointment
-- "check_availability": User wants to see available times/slots
+- "schedule": User wants to book/create an appointment (includes vague requests like "i want to meet", "book something", "schedule a meeting")
+- "check_availability": User wants to see available times/slots (includes "what's my availability", "show me free slots", "when are you free")
 - "modify": User wants to change existing appointment
 - "cancel": User wants to cancel/delete appointment  
 - "clarification": User needs more information or is confused
 - "general_inquiry": General question about capabilities
+
+IMPORTANT: If the user says something vague like "i want to meet" or "book something", classify as "schedule" intent.
+If the user asks about availability, free time, or when you're free, classify as "check_availability" intent.
 
 Be very precise and consider natural language variations."""
 
@@ -395,7 +398,14 @@ Be very precise and consider natural language variations."""
                 except json.JSONDecodeError as e:
                     logger.error(f"JSON decode error on attempt {attempt}: {e}")
                     if attempt == max_retries:
-                        response_msg = generate_fallback_response(last_user_message)
+                        # Enhanced fallback logic for common cases
+                        if any(word in last_user_message.lower() for word in ['meet', 'book', 'schedule', 'appointment', 'meeting']):
+                            response_msg = generate_scheduling_response(state, last_user_message)
+                        elif any(word in last_user_message.lower() for word in ['availability', 'free', 'when', 'time', 'slot']):
+                            response_msg = generate_availability_response(state, last_user_message)
+                        else:
+                            response_msg = generate_fallback_response(last_user_message)
+                        
                         state.messages.append({
                             "role": "assistant",
                             "content": response_msg
@@ -403,7 +413,14 @@ Be very precise and consider natural language variations."""
                     continue
             else:
                 if attempt == max_retries:
-                    response_msg = generate_fallback_response(last_user_message)
+                    # Enhanced fallback logic for empty responses
+                    if any(word in last_user_message.lower() for word in ['meet', 'book', 'schedule', 'appointment', 'meeting']):
+                        response_msg = generate_scheduling_response(state, last_user_message)
+                    elif any(word in last_user_message.lower() for word in ['availability', 'free', 'when', 'time', 'slot']):
+                        response_msg = generate_availability_response(state, last_user_message)
+                    else:
+                        response_msg = generate_fallback_response(last_user_message)
+                    
                     state.messages.append({
                         "role": "assistant",
                         "content": response_msg
@@ -413,7 +430,14 @@ Be very precise and consider natural language variations."""
         except Exception as e:
             logger.error(f"Error in intent understanding (attempt {attempt}): {e}")
             if attempt == max_retries:
-                response_msg = generate_fallback_response(last_user_message)
+                # Enhanced fallback logic for exceptions
+                if any(word in last_user_message.lower() for word in ['meet', 'book', 'schedule', 'appointment', 'meeting']):
+                    response_msg = generate_scheduling_response(state, last_user_message)
+                elif any(word in last_user_message.lower() for word in ['availability', 'free', 'when', 'time', 'slot']):
+                    response_msg = generate_availability_response(state, last_user_message)
+                else:
+                    response_msg = generate_fallback_response(last_user_message)
+                
                 state.messages.append({
                     "role": "assistant",
                     "content": response_msg

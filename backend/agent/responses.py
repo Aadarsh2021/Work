@@ -37,6 +37,9 @@ def slot_suggestion(slots: list, date_str: str = "") -> str:
     if not slots:
         return no_availability()
     
+    # Check if this is a "this week" request (slots have day information)
+    is_week_request = any('day_name' in slot for slot in slots)
+    
     # Format the slots nicely
     slot_options = []
     for i, slot in enumerate(slots[:5], 1):  # Limit to 5 options
@@ -44,7 +47,12 @@ def slot_suggestion(slots: list, date_str: str = "") -> str:
         if 'start_time_display' in slot and 'end_time_display' in slot:
             start_formatted = slot['start_time_display']
             end_formatted = slot['end_time_display']
-            slot_options.append(f"**{i}.** {start_formatted} - {end_formatted}")
+            
+            # Add day information for week requests
+            if is_week_request and 'day_name' in slot and 'day_date' in slot:
+                slot_options.append(f"**{i}.** {slot['day_name']}, {slot['day_date']} - {start_formatted} - {end_formatted}")
+            else:
+                slot_options.append(f"**{i}.** {start_formatted} - {end_formatted}")
         else:
             # Fallback to parsing ISO format
             start_time = slot.get('start', '')
@@ -59,16 +67,26 @@ def slot_suggestion(slots: list, date_str: str = "") -> str:
                     start_formatted = start_dt.strftime('%I:%M %p')
                     end_formatted = end_dt.strftime('%I:%M %p')
                     
-                    slot_options.append(f"**{i}.** {start_formatted} - {end_formatted}")
+                    # Add day information for week requests
+                    if is_week_request and 'day_name' in slot and 'day_date' in slot:
+                        slot_options.append(f"**{i}.** {slot['day_name']}, {slot['day_date']} - {start_formatted} - {end_formatted}")
+                    else:
+                        slot_options.append(f"**{i}.** {start_formatted} - {end_formatted}")
                 else:
                     slot_options.append(f"**{i}.** {start_time} - {end_time}")
             except:
                 slot_options.append(f"**{i}.** {start_time} - {end_time}")
     
-    date_context = f" for **{date_str}**" if date_str else ""
+    # Determine the context message
+    if is_week_request:
+        date_context = " for **this week**"
+        context_message = "I found some great time slots for this week that should work well for you: 🎯"
+    else:
+        date_context = f" for **{date_str}**" if date_str else ""
+        context_message = f"Perfect! I found some great time slots{date_context} that should work well for you: 🎯"
     
     response = (
-        f"Perfect! I found some great time slots{date_context} that should work well for you: 🎯\n\n"
+        f"{context_message}\n\n"
         f"{chr(10).join(slot_options)}\n\n"
         f"**How to choose:**\n\n"
         f"• Just reply with the **number** (like \"1\" or \"3\")\n"
