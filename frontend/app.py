@@ -32,83 +32,106 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for ChatGPT-like styling
+# Custom CSS for ChatGPT-like styling with enhanced spacing and margins
 st.markdown("""
 <style>
     /* Main container styling */
     .main {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         min-height: 100vh;
+        padding: 20px;
     }
     
     /* Chat container */
     .chat-container {
         background: rgba(102, 126, 234, 0.15);
-        border-radius: 20px;
-        padding: 20px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        backdrop-filter: blur(10px);
-        margin: 20px 0;
+        border-radius: 25px;
+        padding: 30px;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+        backdrop-filter: blur(15px);
+        margin: 25px 0;
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
     
-    /* Message styling */
+    /* Message styling with enhanced spacing */
     .user-message {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        padding: 15px 20px;
-        border-radius: 20px 20px 5px 20px;
-        margin: 10px 0;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        animation: slideInRight 0.3s ease-out;
+        padding: 20px 25px;
+        border-radius: 25px 25px 8px 25px;
+        margin: 15px 0;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        animation: slideInRight 0.4s ease-out;
+        font-size: 16px;
+        line-height: 1.6;
     }
     
     .assistant-message {
-        background: #f8f9fa;
+        background: #ffffff;
         color: #333;
-        padding: 15px 20px;
-        border-radius: 20px 20px 20px 5px;
-        margin: 10px 0;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-        border-left: 4px solid #667eea;
-        animation: slideInLeft 0.3s ease-out;
+        padding: 25px 30px;
+        border-radius: 25px 25px 25px 8px;
+        margin: 20px 0;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+        border-left: 5px solid #667eea;
+        animation: slideInLeft 0.4s ease-out;
+        font-size: 16px;
+        line-height: 1.7;
+        position: relative;
     }
     
-    /* Input styling */
+    .assistant-message::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.02) 0%, rgba(118, 75, 162, 0.02) 100%);
+        border-radius: inherit;
+        pointer-events: none;
+    }
+    
+    /* Enhanced input styling */
     .stTextInput > div > div > input {
-        border-radius: 25px;
+        border-radius: 30px;
         border: 2px solid #e0e0e0;
-        padding: 15px 20px;
+        padding: 18px 25px;
         font-size: 16px;
         transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
     }
     
     .stTextInput > div > div > input:focus {
         border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+        transform: translateY(-2px);
     }
     
-    /* Button styling */
+    /* Enhanced button styling */
     .stButton > button {
-        border-radius: 25px;
+        border-radius: 30px;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border: none;
-        padding: 12px 30px;
+        padding: 15px 35px;
         font-weight: 600;
+        font-size: 16px;
         transition: all 0.3s ease;
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        margin: 10px 5px;
     }
     
     .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        transform: translateY(-3px);
+        box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
     }
     
-    /* Animations */
+    /* Enhanced animations */
     @keyframes slideInRight {
         from {
             opacity: 0;
-            transform: translateX(30px);
+            transform: translateX(40px);
         }
         to {
             opacity: 1;
@@ -119,7 +142,7 @@ st.markdown("""
     @keyframes slideInLeft {
         from {
             opacity: 0;
-            transform: translateX(-30px);
+            transform: translateX(-40px);
         }
         to {
             opacity: 1;
@@ -127,25 +150,26 @@ st.markdown("""
         }
     }
     
-    /* Typing indicator */
+    /* Enhanced typing indicator */
     .typing-indicator {
         display: flex;
         align-items: center;
-        padding: 15px 20px;
-        background: #f8f9fa;
-        border-radius: 20px 20px 20px 5px;
-        margin: 10px 0;
-        border-left: 4px solid #667eea;
+        padding: 20px 25px;
+        background: #ffffff;
+        border-radius: 25px 25px 25px 8px;
+        margin: 15px 0;
+        border-left: 5px solid #667eea;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
     }
     
     .typing-dots {
         display: flex;
-        gap: 4px;
+        gap: 6px;
     }
     
     .typing-dot {
-        width: 8px;
-        height: 8px;
+        width: 10px;
+        height: 10px;
         border-radius: 50%;
         background: #667eea;
         animation: typing 1.4s infinite ease-in-out;
@@ -165,78 +189,211 @@ st.markdown("""
         }
     }
     
-    /* Header styling */
+    /* Enhanced header styling */
     .header {
         text-align: center;
-        padding: 20px 0;
+        padding: 30px 0;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 20px;
-        margin-bottom: 20px;
+        border-radius: 25px;
+        margin-bottom: 30px;
         color: white;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
     
     .header h1 {
         margin: 0;
-        font-size: 2.5em;
+        font-size: 2.8em;
         font-weight: 700;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
     }
     
     .header p {
-        margin: 10px 0 0 0;
-        font-size: 1.1em;
-        opacity: 0.9;
+        margin: 15px 0 0 0;
+        font-size: 1.2em;
+        opacity: 0.95;
+        text-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
     }
     
-    /* Status indicators */
+    /* Enhanced status indicators */
     .status-indicator {
         display: inline-block;
-        width: 10px;
-        height: 10px;
+        width: 12px;
+        height: 12px;
         border-radius: 50%;
-        margin-right: 8px;
+        margin-right: 10px;
         vertical-align: middle;
     }
     
     .status-online {
         background: #28a745;
         animation: pulse-glow 2s infinite;
-        box-shadow: 0 0 8px 3px rgba(40, 167, 69, 0.6), 0 0 15px rgba(40, 167, 69, 0.4);
+        box-shadow: 0 0 12px 4px rgba(40, 167, 69, 0.6), 0 0 20px rgba(40, 167, 69, 0.4);
         transition: box-shadow 0.3s ease-in-out;
     }
-
     
     .status-offline {
         background: #dc3545;
-        box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.3);
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.3);
     }
     
-    @keyframes pulse {
+    @keyframes pulse-glow {
         0% { 
             opacity: 1; 
-            box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.3);
+            box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.3);
         }
         50% { 
-            opacity: 0.7; 
-            box-shadow: 0 0 0 4px rgba(40, 167, 69, 0.1);
+            opacity: 0.8; 
+            box-shadow: 0 0 0 8px rgba(40, 167, 69, 0.1);
         }
         100% { 
             opacity: 1; 
-            box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.3);
+            box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.3);
         }
     }
     
-    /* Remove any default margins/padding that might cause lines */
-    .stMarkdown {
-        margin: 0;
-        padding: 0;
+    /* Enhanced markdown styling */
+    .assistant-message h1, .assistant-message h2, .assistant-message h3 {
+        margin: 20px 0 15px 0;
+        color: #667eea;
+        font-weight: 600;
     }
     
-    .stMarkdown > div {
-        margin: 0;
-        padding: 0;
+    .assistant-message p {
+        margin: 15px 0;
+        line-height: 1.7;
+    }
+    
+    .assistant-message ul, .assistant-message ol {
+        margin: 15px 0;
+        padding-left: 25px;
+    }
+    
+    .assistant-message li {
+        margin: 8px 0;
+        line-height: 1.6;
+    }
+    
+    .assistant-message strong {
+        color: #667eea;
+        font-weight: 600;
+    }
+    
+    .assistant-message em {
+        color: #764ba2;
+        font-style: italic;
+    }
+    
+    /* Enhanced code blocks */
+    .assistant-message code {
+        background: rgba(102, 126, 234, 0.1);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+        color: #667eea;
+    }
+    
+    .assistant-message pre {
+        background: rgba(102, 126, 234, 0.05);
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #667eea;
+        margin: 15px 0;
+        overflow-x: auto;
+    }
+    
+    /* Enhanced blockquotes */
+    .assistant-message blockquote {
+        border-left: 4px solid #667eea;
+        padding-left: 20px;
+        margin: 20px 0;
+        font-style: italic;
+        color: #666;
+        background: rgba(102, 126, 234, 0.05);
+        padding: 15px 20px;
+        border-radius: 0 8px 8px 0;
+    }
+    
+    /* Enhanced tables */
+    .assistant-message table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 20px 0;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .assistant-message th {
+        background: #667eea;
+        color: white;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+    }
+    
+    .assistant-message td {
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+        background: white;
+    }
+    
+    .assistant-message tr:nth-child(even) td {
+        background: #f8f9fa;
+    }
+    
+    /* Enhanced links */
+    .assistant-message a {
+        color: #667eea;
+        text-decoration: none;
+        border-bottom: 1px solid transparent;
+        transition: border-bottom 0.3s ease;
+    }
+    
+    .assistant-message a:hover {
+        border-bottom: 1px solid #667eea;
+    }
+    
+    /* Enhanced horizontal rules */
+    .assistant-message hr {
+        border: none;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #667eea, transparent);
+        margin: 25px 0;
+    }
+    
+    /* Enhanced spacing for lists */
+    .assistant-message ul li, .assistant-message ol li {
+        margin: 10px 0;
+        padding-left: 5px;
+    }
+    
+    /* Enhanced spacing for nested lists */
+    .assistant-message ul ul, .assistant-message ol ol {
+        margin: 10px 0;
+    }
+    
+    /* Enhanced spacing for paragraphs */
+    .assistant-message p + p {
+        margin-top: 15px;
+    }
+    
+    /* Enhanced spacing for headings */
+    .assistant-message h1 + p, .assistant-message h2 + p, .assistant-message h3 + p {
+        margin-top: 10px;
+    }
+    
+    /* Enhanced spacing for sections */
+    .assistant-message > * + * {
+        margin-top: 15px;
+    }
+    
+    /* Enhanced spacing for the last element */
+    .assistant-message > *:last-child {
+        margin-bottom: 0;
     }
 </style>
-""", unsafe_allow_html=True)
+""")
 
 def check_api_health():
     """Check if the backend API is healthy."""
@@ -288,33 +445,285 @@ def send_message(message):
         }
 
 def format_booking_details(details):
+    """Format booking details with enhanced visual styling."""
     if not details:
         return ""
+    
     lines = []
+    
+    # Enhanced styling for each detail
     if "title" in details:
-        lines.append(f"<b>Title:</b> {details['title']}")
+        lines.append(f'''
+        <div style="
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 8px 0;
+        ">
+            <span style="
+                background: #667eea;
+                color: white;
+                padding: 4px 8px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 600;
+                margin-right: 12px;
+                min-width: 60px;
+                text-align: center;
+            ">Title</span>
+            <span style="font-weight: 500; color: #333;">{details['title']}</span>
+        </div>
+        ''')
+    
     if "start" in details:
-        lines.append(f"<b>Start:</b> {details['start']}")
+        lines.append(f'''
+        <div style="
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 8px 0;
+        ">
+            <span style="
+                background: #28a745;
+                color: white;
+                padding: 4px 8px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 600;
+                margin-right: 12px;
+                min-width: 60px;
+                text-align: center;
+            ">Start</span>
+            <span style="font-weight: 500; color: #333;">{details['start']}</span>
+        </div>
+        ''')
+    
     if "end" in details:
-        lines.append(f"<b>End:</b> {details['end']}")
+        lines.append(f'''
+        <div style="
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 8px 0;
+        ">
+            <span style="
+                background: #dc3545;
+                color: white;
+                padding: 4px 8px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 600;
+                margin-right: 12px;
+                min-width: 60px;
+                text-align: center;
+            ">End</span>
+            <span style="font-weight: 500; color: #333;">{details['end']}</span>
+        </div>
+        ''')
+    
     if "location" in details:
-        lines.append(f"<b>Location:</b> {details['location']}")
+        lines.append(f'''
+        <div style="
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 8px 0;
+        ">
+            <span style="
+                background: #ffc107;
+                color: #333;
+                padding: 4px 8px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 600;
+                margin-right: 12px;
+                min-width: 60px;
+                text-align: center;
+            ">Location</span>
+            <span style="font-weight: 500; color: #333;">{details['location']}</span>
+        </div>
+        ''')
+    
     if "link" in details:
-        lines.append(f'<b>Link:</b> <a href="{details["link"]}" target="_blank">Open in Calendar</a>')
-    return "<br>".join(lines)
+        lines.append(f'''
+        <div style="
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 8px 0;
+        ">
+            <span style="
+                background: #17a2b8;
+                color: white;
+                padding: 4px 8px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 600;
+                margin-right: 12px;
+                min-width: 60px;
+                text-align: center;
+            ">Link</span>
+            <a href="{details['link']}" target="_blank" style="
+                color: #667eea;
+                text-decoration: none;
+                font-weight: 500;
+                padding: 6px 12px;
+                background: rgba(102, 126, 234, 0.1);
+                border-radius: 6px;
+                transition: all 0.3s ease;
+            " onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="this.style.background='rgba(102, 126, 234, 0.1)'">
+                📅 Open in Calendar
+            </a>
+        </div>
+        ''')
+    
+    return "".join(lines)
 
 def format_message(content, role, booking_confirmed=False, appointment_details=None, error=None):
+    """Format a message with enhanced styling and spacing."""
     if role == "user":
         return f'<div class="user-message">{content}</div>'
     else:
-        extra = ""
+        # Enhanced content formatting
+        formatted_content = content
+        
+        # Add visual enhancements for different message types
         if booking_confirmed and appointment_details:
-            extra = f'<div style="margin-top:8px; padding:10px; background:#e6ffe6; border-radius:10px; border-left:4px solid #28a745;">✅ <b>Booking Confirmed!</b><br>{format_booking_details(appointment_details)}</div>'
+            extra = f'''
+            <div style="
+                margin-top: 20px; 
+                padding: 20px; 
+                background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%); 
+                border-radius: 15px; 
+                border-left: 5px solid #28a745;
+                box-shadow: 0 4px 15px rgba(40, 167, 69, 0.1);
+                position: relative;
+                overflow: hidden;
+            ">
+                <div style="
+                    position: absolute;
+                    top: 0;
+                    right: 0;
+                    width: 60px;
+                    height: 60px;
+                    background: rgba(40, 167, 69, 0.1);
+                    border-radius: 50%;
+                    transform: translate(20px, -20px);
+                "></div>
+                <div style="
+                    display: flex;
+                    align-items: center;
+                    margin-bottom: 15px;
+                    font-size: 18px;
+                    font-weight: 600;
+                    color: #28a745;
+                ">
+                    <span style="font-size: 24px; margin-right: 10px;">🎉</span>
+                    <span>Booking Confirmed!</span>
+                </div>
+                <div style="
+                    background: white;
+                    padding: 15px;
+                    border-radius: 10px;
+                    border: 1px solid rgba(40, 167, 69, 0.2);
+                ">
+                    {format_booking_details(appointment_details)}
+                </div>
+            </div>
+            '''
         elif appointment_details:
-            extra = f'<div style="margin-top:8px; padding:10px; background:#f0f4ff; border-radius:10px; border-left:4px solid #667eea;">📅 <b>Appointment Details:</b><br>{format_booking_details(appointment_details)}</div>'
+            extra = f'''
+            <div style="
+                margin-top: 20px; 
+                padding: 20px; 
+                background: linear-gradient(135deg, #f0f4ff 0%, #e6f0ff 100%); 
+                border-radius: 15px; 
+                border-left: 5px solid #667eea;
+                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.1);
+                position: relative;
+                overflow: hidden;
+            ">
+                <div style="
+                    position: absolute;
+                    top: 0;
+                    right: 0;
+                    width: 60px;
+                    height: 60px;
+                    background: rgba(102, 126, 234, 0.1);
+                    border-radius: 50%;
+                    transform: translate(20px, -20px);
+                "></div>
+                <div style="
+                    display: flex;
+                    align-items: center;
+                    margin-bottom: 15px;
+                    font-size: 18px;
+                    font-weight: 600;
+                    color: #667eea;
+                ">
+                    <span style="font-size: 24px; margin-right: 10px;">📅</span>
+                    <span>Appointment Details</span>
+                </div>
+                <div style="
+                    background: white;
+                    padding: 15px;
+                    border-radius: 10px;
+                    border: 1px solid rgba(102, 126, 234, 0.2);
+                ">
+                    {format_booking_details(appointment_details)}
+                </div>
+            </div>
+            '''
+        else:
+            extra = ""
+            
         if error:
-            extra += f'<div style="margin-top:8px; padding:10px; background:#fff0f0; border-radius:10px; border-left:4px solid #dc3545; color:#dc3545;">❌ <b>Error:</b> {error}</div>'
-        return f'<div class="assistant-message">{content}{extra}</div>'
+            error_extra = f'''
+            <div style="
+                margin-top: 20px; 
+                padding: 20px; 
+                background: linear-gradient(135deg, #fff5f5 0%, #ffe6e6 100%); 
+                border-radius: 15px; 
+                border-left: 5px solid #dc3545;
+                box-shadow: 0 4px 15px rgba(220, 53, 69, 0.1);
+                position: relative;
+                overflow: hidden;
+            ">
+                <div style="
+                    position: absolute;
+                    top: 0;
+                    right: 0;
+                    width: 60px;
+                    height: 60px;
+                    background: rgba(220, 53, 69, 0.1);
+                    border-radius: 50%;
+                    transform: translate(20px, -20px);
+                "></div>
+                <div style="
+                    display: flex;
+                    align-items: center;
+                    margin-bottom: 15px;
+                    font-size: 18px;
+                    font-weight: 600;
+                    color: #dc3545;
+                ">
+                    <span style="font-size: 24px; margin-right: 10px;">⚠️</span>
+                    <span>Error</span>
+                </div>
+                <div style="
+                    background: white;
+                    padding: 15px;
+                    border-radius: 10px;
+                    border: 1px solid rgba(220, 53, 69, 0.2);
+                    color: #dc3545;
+                ">
+                    {error}
+                </div>
+            </div>
+            '''
+            extra += error_extra
+            
+        return f'<div class="assistant-message">{formatted_content}{extra}</div>'
 
 def show_typing_indicator():
     """Show typing indicator."""
