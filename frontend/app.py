@@ -393,7 +393,7 @@ st.markdown("""
         margin-bottom: 0;
     }
 </style>
-""")
+""", unsafe_allow_html=True)
 
 def check_api_health():
     """Check if the backend API is healthy."""
@@ -962,15 +962,15 @@ def main():
         if not api_healthy:
             st.error("⚠️ Backend is offline. Please check the backend server.")
         
-        # Debug section
-        st.markdown("### 🔍 Debug Information")
-        st.write("Backend URL:", API_BASE_URL)
-        st.write("Session ID:", st.session_state.session_id)
-        st.write("API Token configured:", bool(API_TOKEN))
-        
-        if "last_health_check" in st.session_state:
-            st.markdown("**Last Health Check:**")
-            st.json(st.session_state.last_health_check)
+        # Debug section (collapsible)
+        with st.expander("🔍 Debug Information", expanded=False):
+            st.write("**Backend URL:**", API_BASE_URL)
+            st.write("**Session ID:**", st.session_state.session_id)
+            st.write("**API Token configured:**", bool(API_TOKEN))
+            
+            if "last_health_check" in st.session_state:
+                st.markdown("**Last Health Check:**")
+                st.json(st.session_state.last_health_check)
 
 if __name__ == "__main__":
     main() 
