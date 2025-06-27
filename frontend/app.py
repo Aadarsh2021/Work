@@ -445,139 +445,29 @@ def send_message(message):
         }
 
 def format_booking_details(details):
-    """Format booking details with enhanced visual styling."""
+    """Format booking details using Streamlit native components."""
     if not details:
         return ""
     
+    # Create a simple text representation for the message content
     lines = []
     
-    # Enhanced styling for each detail
     if "title" in details:
-        lines.append(f'''
-        <div style="
-            display: flex;
-            align-items: center;
-            margin: 10px 0;
-            padding: 8px 0;
-        ">
-            <span style="
-                background: #667eea;
-                color: white;
-                padding: 4px 8px;
-                border-radius: 6px;
-                font-size: 12px;
-                font-weight: 600;
-                margin-right: 12px;
-                min-width: 60px;
-                text-align: center;
-            ">Title</span>
-            <span style="font-weight: 500; color: #333;">{details['title']}</span>
-        </div>
-        ''')
+        lines.append(f"**Title:** {details['title']}")
     
     if "start" in details:
-        lines.append(f'''
-        <div style="
-            display: flex;
-            align-items: center;
-            margin: 10px 0;
-            padding: 8px 0;
-        ">
-            <span style="
-                background: #28a745;
-                color: white;
-                padding: 4px 8px;
-                border-radius: 6px;
-                font-size: 12px;
-                font-weight: 600;
-                margin-right: 12px;
-                min-width: 60px;
-                text-align: center;
-            ">Start</span>
-            <span style="font-weight: 500; color: #333;">{details['start']}</span>
-        </div>
-        ''')
+        lines.append(f"**Start:** {details['start']}")
     
     if "end" in details:
-        lines.append(f'''
-        <div style="
-            display: flex;
-            align-items: center;
-            margin: 10px 0;
-            padding: 8px 0;
-        ">
-            <span style="
-                background: #dc3545;
-                color: white;
-                padding: 4px 8px;
-                border-radius: 6px;
-                font-size: 12px;
-                font-weight: 600;
-                margin-right: 12px;
-                min-width: 60px;
-                text-align: center;
-            ">End</span>
-            <span style="font-weight: 500; color: #333;">{details['end']}</span>
-        </div>
-        ''')
+        lines.append(f"**End:** {details['end']}")
     
     if "location" in details:
-        lines.append(f'''
-        <div style="
-            display: flex;
-            align-items: center;
-            margin: 10px 0;
-            padding: 8px 0;
-        ">
-            <span style="
-                background: #ffc107;
-                color: #333;
-                padding: 4px 8px;
-                border-radius: 6px;
-                font-size: 12px;
-                font-weight: 600;
-                margin-right: 12px;
-                min-width: 60px;
-                text-align: center;
-            ">Location</span>
-            <span style="font-weight: 500; color: #333;">{details['location']}</span>
-        </div>
-        ''')
+        lines.append(f"**Location:** {details['location']}")
     
     if "link" in details:
-        lines.append(f'''
-        <div style="
-            display: flex;
-            align-items: center;
-            margin: 10px 0;
-            padding: 8px 0;
-        ">
-            <span style="
-                background: #17a2b8;
-                color: white;
-                padding: 4px 8px;
-                border-radius: 6px;
-                font-size: 12px;
-                font-weight: 600;
-                margin-right: 12px;
-                min-width: 60px;
-                text-align: center;
-            ">Link</span>
-            <a href="{details['link']}" target="_blank" style="
-                color: #667eea;
-                text-decoration: none;
-                font-weight: 500;
-                padding: 6px 12px;
-                background: rgba(102, 126, 234, 0.1);
-                border-radius: 6px;
-                transition: all 0.3s ease;
-            " onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="this.style.background='rgba(102, 126, 234, 0.1)'">
-                📅 Open in Calendar
-            </a>
-        </div>
-        ''')
+        lines.append(f"**Link:** [Open in Calendar]({details['link']})")
     
-    return "".join(lines)
+    return "\n\n".join(lines)
 
 def format_message(content, role, booking_confirmed=False, appointment_details=None, error=None):
     """Format a message with enhanced styling and spacing."""
@@ -593,23 +483,11 @@ def format_message(content, role, booking_confirmed=False, appointment_details=N
             <div style="
                 margin-top: 20px; 
                 padding: 20px; 
-                background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%); 
+                background: #e8f5e8; 
                 border-radius: 15px; 
                 border-left: 5px solid #28a745;
                 box-shadow: 0 4px 15px rgba(40, 167, 69, 0.1);
-                position: relative;
-                overflow: hidden;
             ">
-                <div style="
-                    position: absolute;
-                    top: 0;
-                    right: 0;
-                    width: 60px;
-                    height: 60px;
-                    background: rgba(40, 167, 69, 0.1);
-                    border-radius: 50%;
-                    transform: translate(20px, -20px);
-                "></div>
                 <div style="
                     display: flex;
                     align-items: center;
@@ -636,23 +514,11 @@ def format_message(content, role, booking_confirmed=False, appointment_details=N
             <div style="
                 margin-top: 20px; 
                 padding: 20px; 
-                background: linear-gradient(135deg, #f0f4ff 0%, #e6f0ff 100%); 
+                background: #f0f4ff; 
                 border-radius: 15px; 
                 border-left: 5px solid #667eea;
                 box-shadow: 0 4px 15px rgba(102, 126, 234, 0.1);
-                position: relative;
-                overflow: hidden;
             ">
-                <div style="
-                    position: absolute;
-                    top: 0;
-                    right: 0;
-                    width: 60px;
-                    height: 60px;
-                    background: rgba(102, 126, 234, 0.1);
-                    border-radius: 50%;
-                    transform: translate(20px, -20px);
-                "></div>
                 <div style="
                     display: flex;
                     align-items: center;
@@ -682,23 +548,11 @@ def format_message(content, role, booking_confirmed=False, appointment_details=N
             <div style="
                 margin-top: 20px; 
                 padding: 20px; 
-                background: linear-gradient(135deg, #fff5f5 0%, #ffe6e6 100%); 
+                background: #fff5f5; 
                 border-radius: 15px; 
                 border-left: 5px solid #dc3545;
                 box-shadow: 0 4px 15px rgba(220, 53, 69, 0.1);
-                position: relative;
-                overflow: hidden;
             ">
-                <div style="
-                    position: absolute;
-                    top: 0;
-                    right: 0;
-                    width: 60px;
-                    height: 60px;
-                    background: rgba(220, 53, 69, 0.1);
-                    border-radius: 50%;
-                    transform: translate(20px, -20px);
-                "></div>
                 <div style="
                     display: flex;
                     align-items: center;
