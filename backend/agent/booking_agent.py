@@ -253,7 +253,7 @@ def validate_appointment_request(details: Dict) -> List[str]:
     return errors
 
 def understand_intent_node(state: AgentState) -> AgentState:
-    """Enhanced intent understanding with ChatGPT-like conversation flow."""
+    """Enhanced intent understanding with perfect ChatGPT-like conversation flow."""
     if not state.messages:
         return state.model_dump()
     
@@ -267,9 +267,13 @@ def understand_intent_node(state: AgentState) -> AgentState:
     if not last_user_message:
         return state.model_dump()
     
-    # Check for simple greetings first
-    simple_greetings = ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening', 'howdy']
-    if last_user_message.lower().strip() in simple_greetings:
+    # Enhanced simple greetings detection with variations
+    simple_greetings = [
+        'hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening', 'howdy',
+        'greetings', 'hi there', 'hello there', 'hey there', 'good day', 'morning', 'afternoon',
+        'evening', 'sup', 'yo', 'what\'s up', 'how are you', 'how\'s it going'
+    ]
+    if any(greeting in last_user_message.lower().strip() for greeting in simple_greetings):
         response_msg = general_greeting()
         
         state.messages.append({
@@ -280,8 +284,12 @@ def understand_intent_node(state: AgentState) -> AgentState:
         state.simple_greeting = True
         return state.model_dump()
     
-    # Check for help requests
-    help_keywords = ['help', 'what can you do', 'how does this work', 'show me examples']
+    # Enhanced help requests detection
+    help_keywords = [
+        'help', 'what can you do', 'how does this work', 'show me examples', 'guide me',
+        'instructions', 'tutorial', 'how to', 'what are your features', 'capabilities',
+        'assist me', 'support', 'manual', 'guide', 'explain', 'tell me about'
+    ]
     if any(keyword in last_user_message.lower() for keyword in help_keywords):
         response_msg = help_response()
         
@@ -293,8 +301,13 @@ def understand_intent_node(state: AgentState) -> AgentState:
         state.simple_greeting = True
         return state.model_dump()
     
-    # Check for goodbye
-    goodbye_keywords = ['bye', 'goodbye', 'thanks', 'thank you', 'see you', 'that\'s all']
+    # Enhanced goodbye detection
+    goodbye_keywords = [
+        'bye', 'goodbye', 'thanks', 'thank you', 'see you', 'that\'s all', 'end',
+        'finish', 'done', 'complete', 'exit', 'quit', 'stop', 'no more', 'that\'s it',
+        'appreciate it', 'thanks a lot', 'thank you so much', 'see you later',
+        'talk to you later', 'catch you later', 'take care', 'have a good day'
+    ]
     if any(keyword in last_user_message.lower() for keyword in goodbye_keywords):
         response_msg = goodbye_response()
         
@@ -307,122 +320,82 @@ def understand_intent_node(state: AgentState) -> AgentState:
         return state.model_dump()
     
     # Enhanced intent analysis with context for non-greeting messages
-    intent_prompt = f"""Analyze the following user message and determine the user's intent for a calendar assistant. Always respond ONLY with a valid JSON object in this format:
-{{
-  "intent": "schedule|check_availability|general_inquiry|modify|cancel",
-  "confidence": "High|Medium|Low",
-  "context_changes": {{}},
-  "follow_up_needed": [],
-  "entities": {{}}
-}}
-User Message: "{last_user_message}"
-"""
+    intent_prompt = f"""Analyze the following user message and determine the user's intent for a calendar assistant. Consider the full context and be very precise.
 
-    max_retries = 2
+User Message: "{last_user_message}"
+
+Return ONLY a valid JSON object in this exact format:
+{{
+  "intent": "schedule|check_availability|general_inquiry|modify|cancel|clarification",
+  "confidence": "High|Medium|Low",
+  "context_changes": {{
+    "date": "YYYY-MM-DD or null",
+    "time": "HH:MM or null", 
+    "duration": "minutes or null",
+    "title": "meeting purpose or null",
+    "urgency": "High|Medium|Low or null"
+  }},
+  "follow_up_needed": ["specific questions needed"],
+  "entities": {{
+    "date_mentioned": "boolean",
+    "time_mentioned": "boolean", 
+    "duration_mentioned": "boolean",
+    "specific_request": "boolean"
+  }}
+}}
+
+Rules:
+- "schedule": User wants to book/create an appointment
+- "check_availability": User wants to see available times/slots
+- "modify": User wants to change existing appointment
+- "cancel": User wants to cancel/delete appointment  
+- "clarification": User needs more information or is confused
+- "general_inquiry": General question about capabilities
+
+Be very precise and consider natural language variations."""
+
+    max_retries = 3
     for attempt in range(max_retries + 1):
         try:
             response_content = get_cached_llm_response(intent_prompt, f"intent_{last_user_message[:50]}_{attempt}")
             logger.info(f"LLM intent response (attempt {attempt}): {response_content}")
+            
             if response_content and response_content.strip():
                 try:
                     intent_analysis = json.loads(response_content)
                     state.user_intent = intent_analysis.get('intent', 'general_inquiry')
                     state.conversation_context.update(intent_analysis.get('context_changes', {}))
                     
-                    # Extract entities
+                    # Extract additional entities using the enhanced extractor
                     entities = extract_entities(last_user_message)
                     state.conversation_context.update(entities)
                     
-                    # Generate appropriate response based on intent and context
+                    # Generate perfect response based on intent and context
                     if state.user_intent == "schedule":
-                        if not state.conversation_context.get('date'):
-                            response_msg = (
-                                "I'd be happy to help you schedule an appointment! 📅\n\n"
-                                "**When would you like to meet?** You can say things like:\n"
-                                "• 'tomorrow afternoon'\n"
-                                "• 'next Friday morning'\n"
-                                "• '3 PM next week'\n"
-                                "• 'Monday at 2:30 PM'\n"
-                                "• 'any time this week'\n\n"
-                                "**What works best for you?** I'll find the perfect slot! 😊"
-                            )
-                        elif not state.conversation_context.get('time'):
-                            response_msg = (
-                                f"Great! I see you want to meet on **{state.conversation_context.get('date')}**. "
-                                f"Let me check my availability for that day.\n\n"
-                                f"**What time works best for you?** You can be specific like '2 PM' or general like 'morning' or 'afternoon'."
-                            )
-                        else:
-                            response_msg = (
-                                f"Perfect! I understand you want to meet on **{state.conversation_context.get('date')}** "
-                                f"at **{state.conversation_context.get('time')}**.\n\n"
-                                f"Let me check my availability and find the best slot for you! 🔍"
-                            )
+                        response_msg = generate_scheduling_response(state, last_user_message)
                     elif state.user_intent == "check_availability":
-                        # For availability requests, don't set simple_greeting=True
-                        # Instead, let the workflow continue to suggest_slots_node
-                        response_msg = (
-                            "I'll check my availability for you right now! 🔍\n\n"
-                            "Let me look at my calendar and find the best time slots for you."
-                        )
+                        response_msg = generate_availability_response(state, last_user_message)
                     elif state.user_intent == "modify":
-                        response_msg = (
-                            "I can help you modify your appointment! 🔄\n\n"
-                            "**What changes would you like to make?** You can:\n"
-                            "• Change the date or time\n"
-                            "• Update the meeting title\n"
-                            "• Adjust the duration\n\n"
-                            "What would you like to modify?"
-                        )
-                        state.simple_greeting = True
+                        response_msg = generate_modify_response(state, last_user_message)
                     elif state.user_intent == "cancel":
-                        response_msg = (
-                            "I can help you cancel your appointment! ❌\n\n"
-                            "**Which appointment would you like to cancel?** Please let me know:\n"
-                            "• The date and time of the appointment\n"
-                            "• Or the meeting title\n\n"
-                            "I'll help you cancel it right away."
-                        )
-                        state.simple_greeting = True
+                        response_msg = generate_cancel_response(state, last_user_message)
+                    elif state.user_intent == "clarification":
+                        response_msg = generate_clarification_response(state, last_user_message)
                     else:
-                        # General inquiry - provide helpful guidance
-                        response_msg = (
-                            "I'm here to help you with all your scheduling needs! 🤝\n\n"
-                            "**What would you like to do?**\n\n"
-                            "**📅 Book an appointment:**\n"
-                            "• \"Schedule a meeting for tomorrow afternoon\"\n"
-                            "• \"Book me for next Friday at 2 PM\"\n\n"
-                            "**🔍 Check availability:**\n"
-                            "• \"What's my availability this week?\"\n"
-                            "• \"Show me free slots for Friday\"\n\n"
-                            "**💡 Get suggestions:**\n"
-                            "• \"Find me a good time next week\"\n"
-                            "• \"What's the best slot for a 1-hour meeting?\"\n\n"
-                            "**Just tell me what you need, and I'll guide you through it!** 😊"
-                        )
-                        state.simple_greeting = True
+                        response_msg = generate_general_response(state, last_user_message)
                     
                     state.messages.append({
                         "role": "assistant",
                         "content": response_msg
                     })
                     
-                    logger.info(f"Intent understood: {state.user_intent}")
+                    logger.info(f"Intent understood: {state.user_intent} with confidence: {intent_analysis.get('confidence', 'Unknown')}")
                     break
                     
                 except json.JSONDecodeError as e:
                     logger.error(f"JSON decode error on attempt {attempt}: {e}")
                     if attempt == max_retries:
-                        # Fallback response
-                        response_msg = (
-                            "I'd love to help you with that! 🤝\n\n"
-                            "**Could you tell me a bit more about what you need?** For example:\n\n"
-                            "• **\"I need to schedule a meeting\"** → When would you like to meet?\n"
-                            "• **\"Check my calendar\"** → What date or time period?\n"
-                            "• **\"Book something\"** → What type of appointment and when?\n\n"
-                            "**Just let me know what you need, and I'll make it happen!** ✨"
-                        )
-                        
+                        response_msg = generate_fallback_response(last_user_message)
                         state.messages.append({
                             "role": "assistant",
                             "content": response_msg
@@ -430,16 +403,7 @@ User Message: "{last_user_message}"
                     continue
             else:
                 if attempt == max_retries:
-                    # Fallback response for empty LLM response
-                    response_msg = (
-                        "I'd love to help you with that! 🤝\n\n"
-                        "**Could you tell me a bit more about what you need?** For example:\n\n"
-                        "• **\"I need to schedule a meeting\"** → When would you like to meet?\n"
-                        "• **\"Check my calendar\"** → What date or time period?\n"
-                        "• **\"Book something\"** → What type of appointment and when?\n\n"
-                        "**Just let me know what you need, and I'll make it happen!** ✨"
-                    )
-                    
+                    response_msg = generate_fallback_response(last_user_message)
                     state.messages.append({
                         "role": "assistant",
                         "content": response_msg
@@ -449,16 +413,7 @@ User Message: "{last_user_message}"
         except Exception as e:
             logger.error(f"Error in intent understanding (attempt {attempt}): {e}")
             if attempt == max_retries:
-                # Fallback response
-                response_msg = (
-                    "I'd love to help you with that! 🤝\n\n"
-                    "**Could you tell me a bit more about what you need?** For example:\n\n"
-                    "• **\"I need to schedule a meeting\"** → When would you like to meet?\n"
-                    "• **\"Check my calendar\"** → What date or time period?\n"
-                    "• **\"Book something\"** → What type of appointment and when?\n\n"
-                    "**Just let me know what you need, and I'll make it happen!** ✨"
-                )
-                
+                response_msg = generate_fallback_response(last_user_message)
                 state.messages.append({
                     "role": "assistant",
                     "content": response_msg
@@ -466,6 +421,174 @@ User Message: "{last_user_message}"
             continue
     
     return state.model_dump()
+
+def generate_scheduling_response(state: AgentState, user_message: str) -> str:
+    """Generate perfect scheduling response based on context."""
+    context = state.conversation_context
+    
+    if not context.get('date'):
+        return (
+            "I'd be happy to help you schedule an appointment! 📅\n\n"
+            "**When would you like to meet?** You can be as specific or general as you'd like:\n\n"
+            "**📅 Specific dates:**\n"
+            "• 'tomorrow at 2 PM'\n"
+            "• 'next Friday morning'\n"
+            "• 'Monday, July 1st at 3:30 PM'\n\n"
+            "**⏰ General preferences:**\n"
+            "• 'any time this week'\n"
+            "• 'morning slots next week'\n"
+            "• 'afternoon availability'\n\n"
+            "**🎯 Flexible options:**\n"
+            "• 'find me a good time'\n"
+            "• 'when are you free?'\n"
+            "• 'suggest some times'\n\n"
+            "**What works best for you?** I'll find the perfect slot! 😊"
+        )
+    elif not context.get('time'):
+        date_str = context.get('date')
+        try:
+            date_obj = datetime.fromisoformat(date_str)
+            formatted_date = date_obj.strftime('%A, %B %d, %Y')
+        except:
+            formatted_date = date_str
+            
+        return (
+            f"Perfect! I see you want to meet on **{formatted_date}**. 📅\n\n"
+            f"**What time works best for you?** You can be specific or flexible:\n\n"
+            f"**⏰ Specific times:**\n"
+            f"• '2 PM' or '3:30 PM'\n"
+            f"• 'morning' or 'afternoon'\n"
+            f"• 'early morning' or 'late afternoon'\n\n"
+            f"**🎯 Flexible options:**\n"
+            f"• 'any available time'\n"
+            f"• 'when are you free?'\n"
+            f"• 'find the best slot'\n\n"
+            f"Let me know what works for you, and I'll check my availability! 🔍"
+        )
+    else:
+        date_str = context.get('date')
+        time_str = context.get('time')
+        try:
+            date_obj = datetime.fromisoformat(date_str)
+            formatted_date = date_obj.strftime('%A, %B %d, %Y')
+        except:
+            formatted_date = date_str
+            
+        return (
+            f"Excellent! I understand you want to meet on **{formatted_date}** at **{time_str}**. 🎯\n\n"
+            f"Let me check my availability and find the best slot for you! 🔍\n\n"
+            f"**I'll look for:**\n"
+            f"• 📅 Date: {formatted_date}\n"
+            f"• ⏰ Time: {time_str}\n"
+            f"• ⏱️ Duration: {context.get('duration', 60)} minutes\n\n"
+            f"Just a moment while I check my calendar... ⏳"
+        )
+
+def generate_availability_response(state: AgentState, user_message: str) -> str:
+    """Generate perfect availability response."""
+    return (
+        "I'll check my availability for you right now! 🔍\n\n"
+        "Let me look at my calendar and find the best time slots for you.\n\n"
+        "**I'm searching for:**\n"
+        "• 📅 Available time slots\n"
+        "• ⏰ Best meeting times\n"
+        "• 🎯 Optimal scheduling options\n\n"
+        "Just a moment while I analyze my schedule... ⏳"
+    )
+
+def generate_modify_response(state: AgentState, user_message: str) -> str:
+    """Generate perfect modify response."""
+    return (
+        "I can help you modify your appointment! 🔄\n\n"
+        "**What changes would you like to make?** You can:\n\n"
+        "**📅 Date & Time:**\n"
+        "• Change the date: 'move it to next Friday'\n"
+        "• Change the time: 'make it 3 PM instead'\n"
+        "• Change both: 'reschedule for Monday at 2 PM'\n\n"
+        "**📝 Details:**\n"
+        "• Update the meeting title\n"
+        "• Adjust the duration\n"
+        "• Add or modify description\n\n"
+        "**What would you like to modify?** I'll help you make the changes right away! ✨"
+    )
+
+def generate_cancel_response(state: AgentState, user_message: str) -> str:
+    """Generate perfect cancel response."""
+    return (
+        "I can help you cancel your appointment! ❌\n\n"
+        "**Which appointment would you like to cancel?** Please let me know:\n\n"
+        "**📅 By date and time:**\n"
+        "• 'Cancel my meeting on Friday at 2 PM'\n"
+        "• 'Cancel tomorrow's appointment'\n\n"
+        "**📝 By title:**\n"
+        "• 'Cancel the team meeting'\n"
+        "• 'Cancel my consultation'\n\n"
+        "**🔍 I can help you find it:**\n"
+        "• 'Show me my upcoming appointments'\n"
+        "• 'What meetings do I have this week?'\n\n"
+        "**Just let me know which one, and I'll cancel it right away!** 🗑️"
+    )
+
+def generate_clarification_response(state: AgentState, user_message: str) -> str:
+    """Generate perfect clarification response."""
+    return (
+        "I want to make sure I understand exactly what you need! 🤔\n\n"
+        "**Could you give me a bit more detail?** For example:\n\n"
+        "**📅 For scheduling:**\n"
+        "• 'I need to schedule a meeting for tomorrow afternoon'\n"
+        "• 'Can you book me for next Friday at 2 PM?'\n"
+        "• 'I'm looking for a 30-minute slot this week'\n\n"
+        "**🔍 For availability:**\n"
+        "• 'What's free on Tuesday?'\n"
+        "• 'Show me my schedule for next week'\n"
+        "• 'Do I have time available this afternoon?'\n\n"
+        "**💡 For general help:**\n"
+        "• 'What can you help me with?'\n"
+        "• 'How does this work?'\n\n"
+        "**Just tell me what you need, and I'll make it happen!** ✨"
+    )
+
+def generate_general_response(state: AgentState, user_message: str) -> str:
+    """Generate perfect general response."""
+    return (
+        "I'm here to help you with all your scheduling needs! 🤝\n\n"
+        "**What would you like to do?**\n\n"
+        "**📅 Book an appointment:**\n"
+        "• \"Schedule a meeting for tomorrow afternoon\"\n"
+        "• \"Book me for next Friday at 2 PM\"\n"
+        "• \"I need a 30-minute slot this week\"\n\n"
+        "**🔍 Check availability:**\n"
+        "• \"What's my availability this week?\"\n"
+        "• \"Show me free slots for Friday\"\n"
+        "• \"When are you free next week?\"\n\n"
+        "**💡 Get suggestions:**\n"
+        "• \"Find me a good time next week\"\n"
+        "• \"What's the best slot for a 1-hour meeting?\"\n"
+        "• \"Suggest some times that work\"\n\n"
+        "**🔄 Manage appointments:**\n"
+        "• \"Modify my meeting on Friday\"\n"
+        "• \"Cancel tomorrow's appointment\"\n\n"
+        "**Just tell me what you need in natural language, and I'll guide you through it!** 😊"
+    )
+
+def generate_fallback_response(user_message: str) -> str:
+    """Generate perfect fallback response when intent understanding fails."""
+    return (
+        "I'd love to help you with that! 🤝\n\n"
+        "**Could you tell me a bit more about what you need?** For example:\n\n"
+        "**📅 For scheduling:**\n"
+        "• \"I need to schedule a meeting for tomorrow afternoon\"\n"
+        "• \"Can you book me for next Friday at 2 PM?\"\n"
+        "• \"I'm looking for a 30-minute slot this week\"\n\n"
+        "**🔍 For availability:**\n"
+        "• \"What's free on Tuesday?\"\n"
+        "• \"Show me my schedule for next week\"\n"
+        "• \"Do I have time available this afternoon?\"\n\n"
+        "**💡 For general help:**\n"
+        "• \"What can you help me with?\"\n"
+        "• \"How does this work?\"\n\n"
+        "**Just tell me what you need, and I'll make it happen!** ✨"
+    )
 
 def collect_details_node(state: AgentState) -> AgentState:
     """Collect and parse appointment details from user input."""
